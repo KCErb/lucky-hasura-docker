@@ -1,0 +1,44 @@
+version: '3.6'
+services:
+  postgres:
+    restart: always
+    volumes:
+    - db_data:/var/lib/postgresql/data
+    container_name: PROJECT_NAME_postgres
+  hasura:
+    ports:
+    - 8080:8080
+    - 9695:9695
+    - 9693:9693
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/postgres
+    container_name: PROJECT_NAME_hasura
+    tty: true
+    restart: always
+  lucky:
+    build:
+      context: ../
+      dockerfile: Docker/lucky/Dockerfile
+    image: PROJECT_NAME_lucky:dev
+    volumes:
+    - src-sync:/data/src:nocopy
+    - spec-sync:/data/spec:nocopy
+    - db-sync:/data/db:nocopy
+    ports:
+    - 5000:5000
+    environment:
+      DATABASE_URL: postgres://postgres:@postgres:5432/postgres
+      SHARDS_CACHE_PATH: /data/.shards
+    tty: true
+    container_name: PROJECT_NAME_lucky
+volumes:
+  src-sync:
+    external: true
+  spec-sync:
+    external: true
+  src-sync:
+    external: true
+  db-sync:
+    external: true
+  db_data:
+    name: PROJECT_NAME_data

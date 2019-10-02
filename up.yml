@@ -1,0 +1,20 @@
+main_container: lucky
+
+docker_compose_command: docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml
+
+# Automatically rebuild images when these files have changed.
+#
+# sync syncs only src,spec, and db so we sync on all other changes
+rebuild_when_changed:
+  - docker-sync.yml
+  - shard.*
+  - tasks.cr
+  - up.yml
+  - bin/*
+  - config/*
+  - data/*
+  - Docker/lucky/Dockerfile
+  - Docker/docker-compose.yml
+  - Docker/docker-compose.dev.yml
+  - script/*
+  - tasks/*

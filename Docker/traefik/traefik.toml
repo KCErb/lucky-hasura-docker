@@ -1,0 +1,31 @@
+# debug = true
+# logLevel = "DEBUG"
+# HTTPS_SWITCH
+# defaultEntryPoints = ["http"]
+defaultEntryPoints = ["https"]
+
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+    # HTTPS_SWITCH - from here down
+    [entryPoints.http.redirect]
+    entryPoint = "https"
+  [entryPoints.https]
+  address = ":443"
+    [entryPoints.https.tls]
+      [[entryPoints.https.tls.certificates]]
+      certFile = "/certs/cloudflare.cert"
+      keyFile = "/certs/cloudflare.key"
+
+[file]
+watch = true
+
+[docker]
+endpoint = "tcp://traefik-docker-link:2375"
+exposedByDefault = false
+swarmMode = true
+network = "internal"
+
+[api]
+dashboard = true
+debug = true

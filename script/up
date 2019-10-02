@@ -1,0 +1,31 @@
+#!/bin/bash
+# Exit if any subcommand fails
+set -e
+set -o pipefail
+
+source "${BASH_SOURCE%/*}/functions/commons"
+
+check_for_up
+
+printf "\n▸ Bringing containers up\n"
+docker-sync start | indent
+up -d | indent
+
+printf "\n▸ Running update-db\n"
+docker exec -ti PROJECT_NAME_lucky script/docker/update-db
+
+printf "\n▸ Starting hasura console\n"
+until curl -s http://localhost:8080/v1/version > /dev/null; do
+  >&2 echo "Hasura is unavailable - sleeping"
+  sleep 2
+done
+docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
+
+printf "\n▸ Setting migrations mode to off\n"
+until curl -s http://localhost:9693/apis/migrate/settings > /dev/null; do
+  >&2 echo "Console is unavailable - sleeping" | indent
+  sleep 2
+done
+curl -sH 'Content-Type: application/json' -X PUT -d '{"name": "migration_mode", "value": "false"}' http://localhost:9693/apis/migrate/settings > /dev/null | indent
+
+printf "\n✔ All done.\n"

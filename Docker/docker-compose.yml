@@ -1,0 +1,32 @@
+version: '3.6'
+services:
+  postgres:
+    image: postgres
+    networks:
+    - internal
+  hasura:
+    image: hasura/graphql-engine:v1.0.0-beta.6.cli-migrations
+    # either build custom image or mount volumes, better to build
+    # and image in the future, convenient to mount a volume for now
+    volumes:
+      - ../db/hasura:/hasura
+      - ../script:/script
+    working_dir: /hasura
+    environment:
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura/migrations
+    depends_on:
+    - postgres
+    networks:
+    - internal
+    - external
+  lucky:
+    networks:
+    - internal
+    - external
+    depends_on:
+    - postgres
+
+networks:
+  external:
+  internal:

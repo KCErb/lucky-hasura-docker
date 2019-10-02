@@ -1,0 +1,16 @@
+version: "2"
+
+options:
+  compose-file-path: 'Docker/docker-compose.yml'
+  compose-dev-file-path: 'Docker/docker-compose.dev.yml'
+
+syncs:
+  src-sync:
+    src: './src'
+    notify_terminal: true
+  spec-sync:
+    src: './spec'
+    notify_terminal: true
+  db-sync:
+    src: './db'
+    notify_terminal: true

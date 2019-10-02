@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# build script
+# Intended to be run from gitlab CI. Can be run locally thanks to `if
+# CI_SERVER` variable below.
+# We use REGISTRY_IMAGE, same as gitlab-ci so that we can
+# tag it as the lucky image in case of others from same project in future.
+
+if [ "$CI_SERVER" == "yes" ]; then
+  export LUCKY_TAG=$CI_COMMIT_SHORT_SHA
+else
+  # we are building off of CI
+  export CI_COMMIT_REF_NAME=$(git rev-parse --abbrev-ref HEAD)
+  export REGISTRY_IMAGE=registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky
+  export LUCKY_TAG=$(git rev-parse --short=8 HEAD)
+fi
+
+
+docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml -f Docker/docker-compose.traefik.yml build

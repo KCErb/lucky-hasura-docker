@@ -1,0 +1,73 @@
+
+# Inspired by and based on the config mentioned here
+# https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
+image: docker/compose:1.25.0-rc1
+
+stages:
+  - test
+  - build
+  - push
+  - deploy
+
+variables:
+  REGISTRY_IMAGE: registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky
+
+# Use this if your GitLab runner does not use socket binding
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+Test:
+  stage: test
+  script:
+    docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
+    
+    
+    - docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run --rm lucky crystal spec
+
+Build:
+  stage: build
+  script:
+    # fetches the latest image on the branch, does not fail if not found
+    - docker pull $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME || true
+    - script/build
+    - docker push $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+
+# The goal here is to tag builds by branch so that in the build step we can use previous work
+Push tag:
+  variables:
+    # Again, we do not need the source code here. Just playing with Docker.
+    GIT_STRATEGY: none
+  stage: push
+  script:
+    - docker pull $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker tag $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker push $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+Deploy staging:
+  stage: deploy
+  only:
+    - staging
+  script:
+    - apk add --update openssh
+    - eval $(ssh-agent -s)
+    - echo "$GITLAB_STAGING_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H $STAGING_SERVER_IP >> ~/.ssh/known_hosts
+    - ssh -t root@"$STAGING_SERVER_IP" "bash --login -c 'cd GITLAB_REPO && git pull && script/deploy && docker system prune -af'"
+
+Deploy production:
+  stage: deploy
+  only:
+    - master
+  script:
+    - apk add --update openssh
+    - eval $(ssh-agent -s)
+    - echo "$GITLAB_PRODUCTION_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H $PRODUCTION_SERVER_IP >> ~/.ssh/known_hosts
+    - ssh -t root@"$PRODUCTION_SERVER_IP" "bash --login -c 'cd GITLAB_REPO && git pull && script/deploy && docker system prune -af'"

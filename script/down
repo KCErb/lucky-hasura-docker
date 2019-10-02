@@ -1,0 +1,16 @@
+#!/bin/bash
+# Exit if any subcommand fails
+set -e
+set -o pipefail
+
+source "${BASH_SOURCE%/*}/functions/commons"
+
+printf "\n▸ Stopping and removing containers and networks\n"
+up down | indent
+docker-sync clean | indent
+
+printf "\n▸ Removing volumes\n"
+docker volume rm SWARM_NAME_data | indent
+docker volume rm `docker volume ls -q -f dangling=true` | indent
+
+printf "\n✔ All done.\n"

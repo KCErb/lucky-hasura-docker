@@ -1,0 +1,27 @@
+#!/bin/sh
+# Exit if any subcommand fails
+set -e
+
+cmd="$@"
+
+if [ -z ${POSTGRES_USER+x} ]; then
+  >&2 echo "POSTGRES_USER var is not set, defaulting to postgres"
+  POSTGRES_USER=postgres
+fi
+
+if [ -z ${POSTGRES_HOST+x} ]; then
+  >&2 echo "POSTGRES_HOST var is not set, defaulting to postgres"
+  POSTGRES_HOST=postgres
+fi
+
+if [ -z ${POSTGRES_DB+x} ]; then
+  >&2 echo "POSTGRES_DB var is not set, defaulting to no db arg"
+fi
+
+until PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -h $POSTGRES_HOST -c '\q' $POSTGRES_DB; do
+  >&2 echo "Postgres is unavailable - sleeping"
+  sleep 1
+done
+
+>&2 echo "Postgres is up - executing command"
+exec $cmd

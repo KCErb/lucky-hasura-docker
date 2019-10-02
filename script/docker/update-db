@@ -1,0 +1,26 @@
+#!/bin/bash
+# Exit if any subcommand fails
+set -e
+set -o pipefail
+
+source "${BASH_SOURCE%/*}/../functions/commons"
+
+printf "\n▸ Migrating once postgres is up\n"
+if [ "$LUCKY_ENV" == "production" ]; then
+  /data/script/docker/wait-for-postgres /data/tasks/run_task db.migrate | indent
+else
+  /data/script/docker/wait-for-postgres lucky db.migrate | indent
+fi
+
+
+printf "\n▸ Seeding the database with required seeds\n"
+if [ "$LUCKY_ENV" == "production" ]; then
+  /data/script/docker/wait-for-postgres /data/tasks/run_task db.create_required_seeds | indent
+else
+  /data/script/docker/wait-for-postgres lucky db.create_required_seeds | indent
+fi
+
+if [ "$LUCKY_ENV" != "production" ]; then
+  printf "\n▸ Seeding the database with sample seeds\n"
+  lucky db.create_sample_seeds | indent
+fi

@@ -1,0 +1,14 @@
+#!/bin/bash
+function indent {
+  while read LINE; do
+    echo "  $LINE" || true
+  done
+}
+
+function check_for_up {
+  if ! command -v up -h > /dev/null; then
+    printf '`up` is not installed.\n'
+    printf 'See https://github.com/paulcsmith/up for install instructions.\n'
+    exit 1
+  fi
+}
