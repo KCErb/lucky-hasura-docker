@@ -45,17 +45,38 @@ The repo has a few "variables" that you should use search and replace to customi
 
 The first two are used in commands like `git clone` to pull down your repo (i.e. `gitlab.com/<GITLAB_USER>/<GITLAB_REPO_NAME>`). 
 
-`PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project name to be `lhd`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names.
+(Oh yeah, did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. In the future if someone wants to pitch in instructions for doing this with a mixture of tools (Github and CircleCI for example), I'll be happy to discuss the best ways to make this more accessible to a wider audience.)
 
-Oh yeah, and did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. In the future if someone wants to pitch in instructions for doing this with a mixture of tools (Github and CircleCI for example), I'll be happy to discuss the best ways to make this more accessible to a wider audience.
+`PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project name to be `lhd`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names. (Not to mention that in Crystal land the project `foo_bar` will be in namespace `FooBar` while the project `foo-bar` will be in namespace `Foo::Bar`.)
 
-Anyways, after you've replaced those 4 with something specific to your project we'll be good to go!
+So go ahead and use sed, or your IDE or whatever you like to replace those throughout your copy of this repo. The following might be handy:
 
-### Docker Tools
+**Linux**
 
-#### docker-compose
+    git grep -l 'GITLAB_USER' | xargs sed -i 's/GITLAB_USER/kcerb/g'
+    git grep -l 'GITLAB_REPO_NAME' | xargs sed -i 's/GITLAB_REPO_NAME/foo_bar/g'
+    git grep -l 'PROJECT_NAME' | xargs sed -i 's/PROJECT_NAME/foo_bar/g'
+    git grep -l 'SWARM_NAME' | xargs sed -i 's/SWARM_NAME/foo_bar/g'
 
-The first directory in LHD that we should discuss is simply called `Docker`. Before we dig in here, first I want to recommend that you read Docker's getting started guide
+**macOS**
+
+    git grep -l 'GITLAB_USER' | xargs sed -i '' -e 's/GITLAB_USER/kcerb/g'
+    git grep -l 'GITLAB_REPO_NAME' | xargs sed -i '' -e 's/GITLAB_REPO_NAME/foo_bar/g'
+    git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
+    git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
+
+Once that's done, you can move (almost) all of the files over to your lucky app. I'm going to recommend removing the scripts that are already there since they are intended for a different style:
+
+```
+rm -rf foo_bar/script
+rsync -avr --exclude='.git' --exclude='README.md' lucky-hasura-docker/ foo_bar
+```
+
+### Docker Intro
+
+Assuming you've installed Docker and can use it on your local machine, let's learn a bit about the Docker config/tools that are provided by LHD.
+
+Before we dig in here, first I want to recommend that you read Docker's getting started guide
 
 [docs.docker.com/get-started](https://docs.docker.com/get-started/)
 
@@ -65,7 +86,7 @@ Before going on, check if you understand this sentence: this is a multi-containe
 
 #### docker-sync
 
-Once you have that down, it's time to hit you with some bad news: Docker is slow on macOS. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on macOS and doesn't interfere with normal Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
+If you're developing on a mac, and new to Docker, it's time to hit you with some bad news: Docker is slow on macOS. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on macOS and doesn't interfere with normal Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
 
 [docker-sync.io](http://docker-sync.io/)
 
@@ -73,9 +94,9 @@ LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need 
 
 #### up
 
-The last tool I'd like to introduce you to is `up`. You don't need this if you are already comfortable using Docker in development, in that case you probably already have your own workflow and you can use it instead. For the rest of us, `up` is simply a tool that keeps an eye on what local files were used to build a Docker image and takes note if any of them change. That way, instead of getting into the habit of starting our project with `docker-compose up` which can lead to surprises if you forget that you needed to rebuild your image(s), you can get in to the habit of having an `up.yml` and then simply calling `up`.
+The last thing you'll need locally is `up`. You don't need this if you are already comfortable using Docker in development, in that case you probably already have your own workflow and you can use it instead. For the rest of us, `up` is simply a tool that keeps an eye on what local files were used to build a Docker image and takes note if any of them change. That way, instead of getting into the habit of starting our project with `docker-compose up` which can lead to surprises if you forget that you needed to rebuild your image(s), you can get in to the habit of having an `up.yml` and then simply calling `up`.
 
-This is a lesser-known tool because it is new. So far it seems to be taking a role as a stepping-stone instead of a production tool, but it's been fine for me so far:
+This is a lesser-known tool because it is new. So far it seems to be taking a role as a stepping-stone instead of a production tool, but it's been fine for me so far. Go ahead and install it according to instructions:
 
 [github.com/paulcsmith/up](https://github.com/paulcsmith/up)
 
@@ -84,7 +105,9 @@ This is a lesser-known tool because it is new. So far it seems to be taking a ro
 Now with all of that introduced, we can talk about the files provided in `LHD/Docker`. There are several `docker-compose` files which in development are called by `up` (see the `up.yml`) as
 `docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml` (we'll talk about the other `docker-compose` files later in the Production section of this writeup). Please take a look at those as they define the core services of the project: `postgres`, `lucky`, and `hasura`. You'll notice in the `.dev` file some `docker-sync` config and some reliance on `script/*` files. Hopefully most of what is here is self-explanatory insofar as these things go. If not, let me know and we can certainly improve this section!
 
-As for the directories in here, we have `traefik` and `prometheus-swarm` which are used in production and `lucky` which is where the `Dockerfile`s reside for creating the production and development images. We want these images to be nearly identical and ideally only use one. The catch is that while `production` is stateless, `development` is syncing from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development.
+As for the directories in here, we have `traefik` and `prometheus-swarm` which are used in production (we'll come back to them) and `lucky` which is where the `Dockerfile`s reside for creating the production and development images. 
+
+The reason there are two images is that while `production` is stateless, `development` is syncing from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development.
 
 Besides these last few lines, we don't want these files to diverge! Shouldn't there be a better way to guarantee this? Yes, but not without having to have a base image which then two more images would build from. That would be cleaner, and perhaps worth it in the long run, but until then, this is the solution I've settled on.
 
@@ -92,11 +115,11 @@ Besides these last few lines, we don't want these files to diverge! Shouldn't th
 
 Now let's dig into all of the scripts that try to make this whole system reproducible and easy to use. In LHD, the `script` directory has two subdirectories: `docker` and `functions`. The `functions` are functions that are called by more than one script. The `docker` scripts are scripts we copy into docker images and run from within the container.
 
-Now let's run through the scripts:
+These scripts are the heart of LHD so let's get into some details:
 
 ### script/up
 
-The first we'll look at is `up`. This brings up the `docker-sync` containers and the services with `up`. It then sets up the database once postgres is ready (thanks to `wait-for-postgres`) including migrations and seeding the database. And after that it sets up Hasura to let us handle the migrations.
+The first we'll look at is `up`. This brings up the `docker-sync` containers and all of our services with `up`. It then sets up the database once postgres is ready (thanks to `wait-for-postgres`) including migrations and seeding the database. Once that's all in place, it sets up Hasura so that we can do Hasura migrations.
 
 The main ideas to notice here are
 
@@ -106,9 +129,10 @@ The main ideas to notice here are
 
     So you'll see a lot of that in these scripts.
 
-2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has it's own wait-for-postgres loop running under the hood too).
+2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres` loop running under the hood too).
 
-Once the services are up, and the database is ready, and Hasura is in the right mode, we should get a simple message: `✔ All done.`.
+
+Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`.
 
 ### script/down
 
