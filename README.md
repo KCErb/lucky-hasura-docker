@@ -14,23 +14,23 @@ There are two sections of this writeup, the first is on using Docker to get thes
 
 ## Lucky CLI
 
-The first thing you'll need to do is get a Lucky project scaffolded using the CLI tool. Here's a link to the docs for how to do that on macOS and Linux (window's support has not landed for Crystal yet):
+The first thing you'll need to do is get a Lucky project scaffolded using the CLI tool. Here's a link to the docs for how to do that on macOS and Linux (Windows support has not landed for Crystal yet):
 
 [luckyframework.org/guides/getting-started/installing#install-lucky-cli](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli)
 
-With that tool in place, you can now start a project with `lucky init` as per the next page of documentation: [luckyframework.org/guides/getting-started/starting-project](https://luckyframework.org/guides/getting-started/starting-project). The dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API only app for now.
+With that tool in place, you can now start a project with `lucky init` as per the next page of documentation: [luckyframework.org/guides/getting-started/starting-project](https://luckyframework.org/guides/getting-started/starting-project). The dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked about authentication, we'll definitely want authentication helpers since Hasura uses JWT.
 
-The next step on that page tells you to run `script/setup` but this is where we part from the Lucky docs. Instead of running this app in our local environment, we'll be running it in Docker.
+After that, the project is created and you're told to do things like `check database settings in config/database.cr`. Besides the initial `cd`, we'll **not** be following those steps because we are more interested in this running in Docker than on our own machine.
 
 ## My Repo
 
-Getting all the configuration with Docker can be challenging, so I'm providing a repository that contains a bunch of Docker-related files. It has everything you need to use Docker in development and deployment, so if you don't want the deployment stuff you'll have to remove it yourself (until someone wants it out enough to submit a PR). Here's a link to the repo:
+Getting all the configuration with Docker can be challenging, so I'm providing this repository which contains a bunch of Docker-related files. It has everything you need (and then some) to use Docker in development *and* deployment, so if you don't want the deployment stuff, you'll have to remove it yourself (until someone wants it out enough to submit a PR). Here's a link to the repo in case this README and the source get separated:
 
 [github.com/KCErb/lucky-hasura-docker](https://github.com/KCErb/lucky-hasura-docker)
 
-I'm going to refer to this repo as LHD (lucky-hasura-docker) throughout this tutorial, so heads up!
+I'm going to refer to this repo as LHD (lucky-hasura-docker) throughout the tutorial, so heads up!
 
-LHD has "releases" intended to go along with these blog posts. These are a kind of promise that I've actually run through / updated this post to match the latest documentation on Lucky version x.x.x and Hasura y.y.y. So be sure to use the release version that matches the post version.
+I will be tagging LHD with "releases". I'll tag a commit of this repo whenever there has been an update to Lucky or Hasura and someone (probably me) has actually run through them and verified that they work. So you can see immediately when and with what versions this has last been tested.
 
 LHD has directories and files that you should add to your Lucky project, but you can't just drop them in. So let's walk through and get a basic understanding of what we're adding here.
 
@@ -38,14 +38,18 @@ LHD has directories and files that you should add to your Lucky project, but you
 
 The repo has a few "variables" that you should use search and replace to customize to your project. They are:
 
-* GITLAB_USER
-* GITLAB_REPO_NAME
-* PROJECT_NAME
-* SWARM_NAME
+* `GITLAB_USER`
+* `GITLAB_REPO_NAME`
+* `PROJECT_NAME`
+* `SWARM_NAME`
 
-The first two are used in commands like `git clone` to pull down your repo. `PROJECT_NAME` and `SWARM_NAME` are up to you. They might be the same as `GITLAB_REPO_NAME` in my case my repo name is too long, so I came up with a shorter name but used the same for both project and swarm.
+The first two are used in commands like `git clone` to pull down your repo (i.e. `gitlab.com/<GITLAB_USER>/<GITLAB_REPO_NAME>`). 
 
-After you've replaced those 4 with something specific to your project we'll be good to go!
+`PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project name to be `lhd`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names.
+
+Oh yeah, and did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. In the future if someone wants to pitch in instructions for doing this with a mixture of tools (Github and CircleCI for example), I'll be happy to discuss the best ways to make this more accessible to a wider audience.
+
+Anyways, after you've replaced those 4 with something specific to your project we'll be good to go!
 
 ### Docker Tools
 
