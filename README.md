@@ -90,7 +90,7 @@ If you're developing on a mac, and new to Docker, it's time to hit you with some
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need to install Ruby on your local machine as well as `docker-sync`.
+LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need to install Ruby on your local machine as well as `docker-sync`. Even if you don't plan on developing on macOS, you'll still need to install this if you don't want to modify the setup here.
 
 #### up
 
@@ -132,7 +132,7 @@ The main ideas to notice here are
 2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres` loop running under the hood too).
 
 
-Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`.
+Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`. Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And lastly, if you look at your docker containers you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll.
 
 ### script/down
 

@@ -5,6 +5,8 @@ services:
     volumes:
     - db_data:/var/lib/postgresql/data
     container_name: PROJECT_NAME_postgres
+    environment: 
+      POSTGRES_HOST_AUTH_METHOD: "trust"
   hasura:
     ports:
     - 8080:8080
