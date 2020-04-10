@@ -6,23 +6,23 @@ If you're not familiar with any of the links above, please click and read since 
 
 And how is it that we put it all together? Docker.
 
-Yes, that's Docker with a period, not an exclamation point. I'm not gonna lie, this project has taken a little skip out of my step with respect to Docker. The rainbows may have faded, but in their place is a pot of steel ingots, not as shiney as gold but still valuable and very useful.
+Yes, that's Docker with a period, not an exclamation point. I'm not gonna lie, this project has taken a little skip out of my step with respect to Docker. The rainbows may have faded, but at the end is a pot of steel ingots, not as shiney as gold but still valuable and very useful.
 
 There are two sections of this writeup, the first is on using Docker to get these tools up together in development, the second is on doing it all in production (with Docker Swarm). As usual, development is just the tip of the iceburg. Much of what's written here and available in the example project is dedicated to having really nice production-grade automated deployment.
 
 # Lucky + Hasura via Docker in Development
 
+Some of the tools here will be on your local machine, others will be in the docker image. Let's start with the things you need locally in order to get this up.
+
 ## Lucky CLI
 
-The first thing you'll need to do is get a Lucky project scaffolded using the CLI tool. Here's a link to the docs for how to do that on macOS and Linux (Windows support has not landed for Crystal yet):
+The first thing you'll need to do is get a Lucky project scaffolded using Lucky CLI. Here are links to the docs for how to do that on [macOS](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-macos) and [Linux](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-linux) (Windows support has not landed for Crystal yet).
 
-[luckyframework.org/guides/getting-started/installing#install-lucky-cli](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli)
+With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). After you name your project, the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT.
 
-With that tool in place, you can now start a project with `lucky init` as per the next page of documentation: [luckyframework.org/guides/getting-started/starting-project](https://luckyframework.org/guides/getting-started/starting-project). The dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked about authentication, we'll definitely want authentication helpers since Hasura uses JWT.
+After that, the project is created and you're told to do things like `check database settings in config/database.cr`. Besides the initial `cd`, we'll **not** be following those steps because we are more interested in this running in Docker than on our own machine. (Notice we'll not even be installing Crystal locally.)
 
-After that, the project is created and you're told to do things like `check database settings in config/database.cr`. Besides the initial `cd`, we'll **not** be following those steps because we are more interested in this running in Docker than on our own machine.
-
-## My Repo
+## LHD
 
 Getting all the configuration with Docker can be challenging, so I'm providing this repository which contains a bunch of Docker-related files. It has everything you need (and then some) to use Docker in development *and* deployment, so if you don't want the deployment stuff, you'll have to remove it yourself (until someone wants it out enough to submit a PR). Here's a link to the repo in case this README and the source get separated:
 
@@ -32,9 +32,9 @@ I'm going to refer to this repo as LHD (lucky-hasura-docker) throughout the tuto
 
 I will be tagging LHD with "releases". I'll tag a commit of this repo whenever there has been an update to Lucky or Hasura and someone (probably me) has actually run through them and verified that they work. So you can see immediately when and with what versions this has last been tested.
 
-LHD has directories and files that you should add to your Lucky project, but you can't just drop them in. So let's walk through and get a basic understanding of what we're adding here.
+LHD has directories and files that you should add to your Lucky project, so go ahead and clone that down into a separate local directory for a start. We'll be modifying it and then moving files from LHD to the lucky project.
 
-### LHD Search and Replace
+### LHD Step 1: Search and Replace
 
 The repo has a few "variables" that you should use search and replace to customize to your project. They are:
 
