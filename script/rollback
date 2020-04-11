@@ -5,6 +5,7 @@ set -o pipefail
 
 source "${BASH_SOURCE%/*}/functions/commons"
 source "${BASH_SOURCE%/*}/functions/update_code"
+source "${BASH_SOURCE%/*}/functions/rollback_db"
 
 # deploy tools read from env, so if we are not in production
 # we can provide some default values for dev purposes.
@@ -34,21 +35,19 @@ TYPE="${ARG2:-add}"
 # rollback migration runs in current container to use newest code for rollback
 CURRENT_VERSION=`git rev-parse --short=8 HEAD`
 
-function rollback {
-  printf "\n▸ Running rollback-db\n"
-  docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint lucky registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$CURRENT_VERSION db.rollback | indent
-}
-
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to remove that code before removing those db changes
 # subtractive take away from the db, so the old code will break so we first deploy the new code
 # which ignores the stuff we're about to take away and then take it away.
 if [ "$TYPE" = "add" ]; then
   update_code
-  rollback
+  rollback_db
 else
-  rollback
+  rollback_db
   update_code
 fi
 
+
+printf "\n▸ Running hasura-cli metadata apply\n"
+docker exec -td PROJECT_NAME_hasura /bin/hasura-cli metadata apply
 printf "\n✔ All done.\n"

@@ -65,7 +65,7 @@ So go ahead and use sed, or your IDE or whatever you like to replace those throu
     git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
     git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
 
-Once that's done, you can move (almost) all of the files over to your lucky app. I'm going to recommend removing the scripts that are already there since they are intended for a different style:
+Once that's done, you can move (almost) all of the files over to your lucky app. I'm going to recommend removing the scripts that are already there since they are intended for a different dev workflow:
 
 ```
 rm -rf foo_bar/script
@@ -136,23 +136,29 @@ Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if
 
 ### script/down
 
-This script does the reverse of `up`. It tears down the volumes and services so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. Keep in mind though that the `up.yml` specifies when that `script/up` command will rebuild the Lucky image which can be time consuming. So you may need to keep an eye on that.
+This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. Also if you are looking for a deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
+
+### script/hasura-metadata-sync
+
+In development, you'll be using the Hasura UI console to set roles and permissions on tables and columns. Hasura can provide two file types for keeping the production Hasura instance in-sync with the development one. The one kind is 'migrations', we won't be using them since Lucky will be managing our Postgres db. The other kind is 'metadata', this is the actual roles, permissions, and so on that are unique to Hasura. This metadata file is stored as `db/hasura/migrations/metadata.yaml` locally. If you run `/bin/hasura-cli metadata export` in the hasura container, then Hasura will dump the current metadata into that spot on the container, and then docker-sync will sync the local copy.
+
+To help you remember to keep this file in sync with the actual Hasura settings, I recommend adding a pre-commit hook that uses `script/hasura-metadata-sync`. This script simply pulls down the latest metadata and compares it to the local copy. If they are different, then it gives you a chance to sync them or ignore the difference.
 
 ### Other Scripts
 
-The other scripts are all for production, so you can read about them later or just delete them.
+The other scripts are all for production, so you can read about them further down in the `production` section of this guide. Or if you're not planning on using the production tools here you can just delete them.
 
 ## CI
 
-The last thing to check if you can bring up and down your project as described is to push it to your favorite git host and have tests run automatically. LHD uses gitlab, so it includes a `.gitlab-ci.yml` which is vastly over complicated if you're not using gitlab to build and deploy I recommend you make your own `.gitlab-ci.yml`, it'll be worth your while:
+The last thing is to push the project up to Gitlab. Please note that the included `.gitlab-ci.yml` is mostly focused on production deployments (to a staging server if on the `staging` branch and to the production server if on the `production` branch), so if you're not interested in that aspect of this project, then you should just make your own.
 
 [docs.gitlab.com/ee/ci/introduction](https://docs.gitlab.com/ee/ci/introduction/)
 
 # Lucky + Hasura via Docker in Production
 
-OK, now for the juicy stuff. The above is nice and all, but we can go way further. We can use `traefik` to put up a load-balanced reverse-proxy to our Docker Swarm. We can have Lucky queries going to some containers and GraphQL queries going to others. We're talking actual microservices here. While messing around with this, I once had my Lucky service down for days and didn't notice because I was just testing the GraphQL and had no other alerts setup. These things are actually independent. I love that. And with a few key strokes we can scale up and down to match needs. Maybe we have a bunch of mobile users hammering the GraphQL endpoints but the Lucky server is kinda bored. No problem, just scale up that Hasura service! To keep an eye on everything, a separate swarm for monitoring tools under the `prometheus` umbrella are available and we bring that all online with commandline one-liner.
+OK, now for the juicy stuff. The above is nice and all, but we can go way further. We can use [Traefik](https://docs.traefik.io/) to put up a load-balanced reverse-proxy to our Docker Swarm. We can have Lucky queries going to some containers and GraphQL queries going to others. (Yay *real* microservices, once while developing this workflow, I had my Lucky service down for days and didn't notice because I was just testing the GraphQL and had no other alerts setup. These things are actually independent. I love that. And with a few keystrokes we can scale up and down to match needs. Maybe we have a bunch of mobile users hammering the GraphQL endpoints but the Lucky server is kinda bored. No problem, just scale up that Hasura service! To keep an eye on everything, a separate swarm for monitoring tools under the [Prometheus](https://prometheus.io/) umbrella are available and we bring that swarm online with an easy one-liner.
 
-What's more is Gitlab can do the heavy lifting for us with respect to building and tagging images. If there's an issue with a deployment on staging, we can use the rollback script to go back to a previous image and database state since the images are tagged by git commit. I'm even experimenting with two kinds of migrations: "additive" and "subtractive" to go for a perfect zero downtime history. If you're interested in these ideas read on, the main motivation for building all of this was to achieve devops Nirvana and if the below isn't it, it's close enough that I think the community can get it the rest of the way there. We'll have to sacrifice a bit though, some of the details of a real production deployment get a little hairy but it's worth it in the end.
+What's more is Gitlab can do the heavy lifting for us with respect to building and tagging images. If there's an issue with a deployment on staging, we can use the rollback script to go back to a previous image and database state since the images are tagged by git commit. I'm even experimenting with two kinds of migrations: "additive" and "subtractive" to go for a perfect zero-downtime history. If you're interested in these ideas read on, the main motivation for building all of this was to achieve devops Nirvana and if the below isn't it, then I hope it's close enough that the community can help me get it the rest of the way there. We'll have to sacrifice a bit though, some of the details of a real production deployment get a little hairy but it's worth it in the end.
 
 ## Staging and Production Servers
 
@@ -162,12 +168,12 @@ With DigitalOcean we can spin up a little hobby server for $5 per month. I don't
 
 Next we can do our DNS and security certificates through Cloudflare for free. I won't go into more detail since I want to let cloudflare maintain their own docs, but this might be a good starting place: [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview).
 
-I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under the SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. I created origin certificates and put them into `etc/certs/cloudflare.cert` and `etc/certs/cloudflare.key`. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled by another service (Traefik).
+I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under the SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. I created origin certificates and put them into `etc/certs/cloudflare.cert` and `etc/certs/cloudflare.key`. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled Traefik.
 
-Lastly, I recommend ssh'ing into the server (take a minute to read how to set that up securely by the way by doing things like removing password-based ssh access) and then doing two things:
+Lastly, I recommend ssh'ing into the server (take a minute to read how to set that up securely, by the way, by doing things like removing password-based ssh access) and then doing two things:
 
 1. `ufw allow`: Since we'll be serving from here we'll need to `ufw allow` a couple of ports: 80 and 443. If you're using the 1-click app 8083 is denied by default and that's fine.
-2. Set up a "Deploy Token" under Settings > Repository. You can use this to log into gitlab on the server and get access to both the git repository as well as the Docker registry provided by Gitlab. [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)
+2. Set up a "Deploy Token" under Settings > Repository. You can use this to log into Gitlab on the server and get access to both the git repository as well as the Docker registry provided by Gitlab. [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)
 
 ## More Scripts
 
@@ -175,7 +181,7 @@ OK, let's take a look at the production/deployment scripts in LHD.
 
 ### deploy
 
-The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that we are deploying to a server that has these on it. But sometimes we need to test our production setup locally, so the script provides some dummy values.
+The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Please add real values to your real production setup!
 
 The next thing to notice here is that we can pass an argument. If there is no argument or if its value is `add` we run in 'additive deploy' mode and if it is anything else we run in 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 

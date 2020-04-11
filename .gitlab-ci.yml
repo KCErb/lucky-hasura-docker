@@ -22,9 +22,7 @@ before_script:
 Test:
   stage: test
   script:
-    docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
-    
-    
+    - docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
     - docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run --rm lucky crystal spec
 
 Build:
