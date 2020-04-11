@@ -1,6 +1,2 @@
-allowlist: []
-functions: []
-query_collections: []
-query_templates: []
-remote_schemas: []
+version: 2
 tables: []
