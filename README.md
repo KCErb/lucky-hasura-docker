@@ -65,12 +65,18 @@ So go ahead and use sed, or your IDE or whatever you like to replace those throu
     git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
     git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
 
-Once that's done, you can move (almost) all of the files over to your lucky app. I'm going to recommend removing the scripts that are already there since they are intended for a different dev workflow:
+Once that's done, you can move (almost) all of the files over to your lucky app. I recommend removing some files from the lucky repo since they are intended for a different dev workflow:
 
 ```
 rm -rf foo_bar/script
+rm foo_bar/Procfile
+rm foo_bar/Procfile.dev
 rsync -avr --exclude='.git' --exclude='README.md' lucky-hasura-docker/ foo_bar
+# add .docker-sync dir to git ignore
+echo '\n.docker-sync/' >> foo_bar/.gitignore
 ```
+
+**dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
 
 ### Docker Intro
 
@@ -140,19 +146,31 @@ This script does the reverse of `up`. It tears down the sync-volumes and removes
 
 ### script/hasura-metadata-sync
 
-In development, you'll be using the Hasura UI console to set roles and permissions on tables and columns. Hasura can provide two file types for keeping the production Hasura instance in-sync with the development one. The one kind is 'migrations', we won't be using them since Lucky will be managing our Postgres db. The other kind is 'metadata', this is the actual roles, permissions, and so on that are unique to Hasura. This metadata file is stored as `db/hasura/migrations/metadata.yaml` locally. If you run `/bin/hasura-cli metadata export` in the hasura container, then Hasura will dump the current metadata into that spot on the container, and then docker-sync will sync the local copy.
+In development, you'll be using the Hasura UI console to set roles and permissions on tables and columns. Hasura can provide two file types for keeping the production Hasura instance in sync with the development one. The one kind is 'migrations', we won't be using them since Lucky will be managing our Postgres db. The other kind is 'metadata', this is the actual roles, permissions, and so on that are unique to Hasura. This metadata file is stored as `db/hasura/migrations/metadata.yaml` locally. If you run `/bin/hasura-cli metadata export` in the Hasura container, then Hasura will dump the current metadata into that spot on the container, and then docker-sync will sync the local copy.
 
 To help you remember to keep this file in sync with the actual Hasura settings, I recommend adding a pre-commit hook that uses `script/hasura-metadata-sync`. This script simply pulls down the latest metadata and compares it to the local copy. If they are different, then it gives you a chance to sync them or ignore the difference.
+
+Here's a one-liner that will create this pre-commit hook when run from the root of the project:
+
+```
+echo '#!/bin/sh\nscript/hasura-metadata-sync' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+```
 
 ### Other Scripts
 
 The other scripts are all for production, so you can read about them further down in the `production` section of this guide. Or if you're not planning on using the production tools here you can just delete them.
 
-## CI
+## From Development to Production
 
-The last thing is to push the project up to Gitlab. Please note that the included `.gitlab-ci.yml` is mostly focused on production deployments (to a staging server if on the `staging` branch and to the production server if on the `production` branch), so if you're not interested in that aspect of this project, then you should just make your own.
+And now, it is decision time. If you're not much interested in deploying your project to a server whenever you push to a special branch, then you should delete the provided `.gitlab-ci.yml` and this is where we part ways. Good luck to you, please feel free to open an issue or a PR to improve this project in making it more geared towards people like yourself. I'd be happy to support you and them here :)
 
-[docs.gitlab.com/ee/ci/introduction](https://docs.gitlab.com/ee/ci/introduction/)
+If you are however interested in getting some of the awesome benefits I've put together here, then the next step will be to start thinking about deployment. We'll be commiting and push our project to the `master` branch on Gitlab and that will kick off a deployment to a production server. So before we push this proejct up, we'll need to provision such a server and get some environment variables put together in Gitlab and on the server so that things go smoothly.
+
+For now, we'll just remove the TravisCI file that lucky provided since we'll not be using their service here:
+
+```
+rm foo_bar/.travis.yml
+```
 
 # Lucky + Hasura via Docker in Production
 
@@ -166,16 +184,26 @@ The first thing we need to do is get some servers up somewhere. It's not terribl
 
 With DigitalOcean we can spin up a little hobby server for $5 per month. I don't want to go too far astray from the topic here, so I'll leave it to you to do a little googling and learn how to use it. I will point out however that the [DigitalOcean 1-click Docker app](https://marketplace.digitalocean.com/apps/docker) is a pretty convenient starting place. For a real project, I'm a fan of the idea of having a dedicated "staging" server, so later it'll come up that we in fact have two servers here with slightly different purposes.
 
+Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be sure you do a little reading on using Docker in production. There are some settings security-wise that you'll want to get right, and plenty of reading material out there to get you started. So please address this now.
+
 Next we can do our DNS and security certificates through Cloudflare for free. I won't go into more detail since I want to let cloudflare maintain their own docs, but this might be a good starting place: [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview).
 
-I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under the SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. I created origin certificates and put them into `etc/certs/cloudflare.cert` and `etc/certs/cloudflare.key`. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled Traefik.
+I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under Cloudflare's SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled Traefik.
 
-Lastly, I recommend ssh'ing into the server (take a minute to read how to set that up securely, by the way, by doing things like removing password-based ssh access) and then doing two things:
+Please then create a `.cert` and `.key` origin certificate pair and place them in `etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double check them:
 
-1. `ufw allow`: Since we'll be serving from here we'll need to `ufw allow` a couple of ports: 80 and 443. If you're using the 1-click app 8083 is denied by default and that's fine.
-2. Set up a "Deploy Token" under Settings > Repository. You can use this to log into Gitlab on the server and get access to both the git repository as well as the Docker registry provided by Gitlab. [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)
+```
+etc/certs/cloudflare.cert
+etc/certs/cloudflare.key
+```
 
-## More Scripts
+Next, I recommend 
+
+1. ssh'ing into the server (if you're new to this, please take a minute to read how to set that up securely, by the way, by doing things like removing password-based ssh access) 
+2. setting up the 'Uncomplicated Firewall' (ufw) via `ufw allow`. Since we'll be serving from here we'll need to `ufw allow` a couple of ports: 80 and 443. If you're using the DigitalOcean 1-click app 8083 is denied by default and that's fine.
+3. In your Gitlab repository, provision a "Deploy Token" under `Settings > Repository`. You can use this to log into Gitlab on the server and get access to both the git repository as well as the Docker registry provided by Gitlab. [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)
+
+## Production Scripts
 
 OK, let's take a look at the production/deployment scripts in LHD.
 
