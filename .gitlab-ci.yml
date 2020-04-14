@@ -1,7 +1,7 @@
 
 # Inspired by and based on the config mentioned here
 # https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
-image: docker/compose:1.25.0-rc1
+image: docker/compose:1.25.5
 
 stages:
   - test

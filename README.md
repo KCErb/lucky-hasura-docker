@@ -138,23 +138,13 @@ The main ideas to notice here are
 2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres` loop running under the hood too).
 
 
-Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`. Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And lastly, if you look at your docker containers you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll.
+Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`. Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) that means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`. 
+
+Lastly, be sure to take a look at your docker containers, you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll!
 
 ### script/down
 
 This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. Also if you are looking for a deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
-
-### script/hasura-metadata-sync
-
-In development, you'll be using the Hasura UI console to set roles and permissions on tables and columns. Hasura can provide two file types for keeping the production Hasura instance in sync with the development one. The one kind is 'migrations', we won't be using them since Lucky will be managing our Postgres db. The other kind is 'metadata', this is the actual roles, permissions, and so on that are unique to Hasura. This metadata file is stored as `db/hasura/migrations/metadata.yaml` locally. If you run `/bin/hasura-cli metadata export` in the Hasura container, then Hasura will dump the current metadata into that spot on the container, and then docker-sync will sync the local copy.
-
-To help you remember to keep this file in sync with the actual Hasura settings, I recommend adding a pre-commit hook that uses `script/hasura-metadata-sync`. This script simply pulls down the latest metadata and compares it to the local copy. If they are different, then it gives you a chance to sync them or ignore the difference.
-
-Here's a one-liner that will create this pre-commit hook when run from the root of the project:
-
-```
-echo '#!/bin/sh\nscript/hasura-metadata-sync' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-```
 
 ### Other Scripts
 
@@ -182,10 +172,26 @@ What's more is Gitlab can do the heavy lifting for us with respect to building a
 
 The first thing we need to do is get some servers up somewhere. It's not terribly important how you choose to do this, so please feel free to skip to the next major heading if you've got your own plan. Otherwise, I'll go ahead and describe how I did this with [DigitalOcean](https://www.digitalocean.com) and [Cloudflare](https://www.cloudflare.com).
 
-With DigitalOcean we can spin up a little hobby server for $5 per month. I don't want to go too far astray from the topic here, so I'll leave it to you to do a little googling and learn how to use it. I will point out however that the [DigitalOcean 1-click Docker app](https://marketplace.digitalocean.com/apps/docker) is a pretty convenient starting place. For a real project, I'm a fan of the idea of having a dedicated "staging" server, so later it'll come up that we in fact have two servers here with slightly different purposes.
+(Sidenote: for a real project, I'm a fan of the idea of having a dedicated "staging" server, so later it'll come up that we in fact have two servers here with slightly different purposes but identical configuration.)
 
-Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be sure you do a little reading on using Docker in production. There are some settings security-wise that you'll want to get right, and plenty of reading material out there to get you started. So please address this now.
+With DigitalOcean (DO) we can spin up a little hobby server for $5 per month. I don't want to go too far astray from the topic here, so I'll leave it to you to do a little googling and learn how to use it. I will point out however that the [DigitalOcean 1-click Docker app](https://marketplace.digitalocean.com/apps/docker) is a pretty convenient starting place. They can setup ssh-only access for you before you even create the droplet which is a great starting place security-wise. 
 
+Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be sure you do a little reading on using Docker in production. There are some settings security-wise that you'll want to get right, and plenty of reading material out there to get you started. So please address this now. (But don't log into Docker yet on the new box, we'll be logging into the Gitlab registry since this box will need to talk to your custom-built images).
+
+Next, I recommend 
+
+1. ssh'ing into the server to make sure you can.
+2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
+3. In your Gitlab repository, provision two Deploy Tokens under `Settings > CI/CD`. 
+    1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select the `read_registry` scope. If you like to, you can use this one in the next step. I'm going to recommend creating a second token though because the special 'gitlab-deploy-token' has 'write' access which other tokens don't have. Also, for the other tokens you can use names to help you remember what it is for like 'foobar-production' and 'foobar-staging'. And then if you leak that token you can revoke it and leave your CI/CD alone. (See more at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).
+    2. The second token will be used to log into the Gitlab Docker registry from your server. Give it a meaningful name and read access to both the registry and the repository and jot down the username and password.
+    3. In your Docker-enabled server, we next want to log in to Docker with the username and password you just got. 
+        
+            docker login registry.gitlab.com -u gitlab+deploy-token-#####
+        
+        You'll get a warning that credentials are stored unsecurely. We'll be putting other production credentials here as env variables, so it is assumed that the production server contains sensitive information. I'm open to a better system, but remember that for automatic deployments to work, things have to be passwordless or Gitlab has to hold the password/secret and hand it over during CD.
+
+HERE
 Next we can do our DNS and security certificates through Cloudflare for free. I won't go into more detail since I want to let cloudflare maintain their own docs, but this might be a good starting place: [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview).
 
 I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under Cloudflare's SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled Traefik.
@@ -196,12 +202,6 @@ Please then create a `.cert` and `.key` origin certificate pair and place them i
 etc/certs/cloudflare.cert
 etc/certs/cloudflare.key
 ```
-
-Next, I recommend 
-
-1. ssh'ing into the server (if you're new to this, please take a minute to read how to set that up securely, by the way, by doing things like removing password-based ssh access) 
-2. setting up the 'Uncomplicated Firewall' (ufw) via `ufw allow`. Since we'll be serving from here we'll need to `ufw allow` a couple of ports: 80 and 443. If you're using the DigitalOcean 1-click app 8083 is denied by default and that's fine.
-3. In your Gitlab repository, provision a "Deploy Token" under `Settings > Repository`. You can use this to log into Gitlab on the server and get access to both the git repository as well as the Docker registry provided by Gitlab. [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)
 
 ## Production Scripts
 
