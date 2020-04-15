@@ -191,25 +191,51 @@ Next, I recommend
         
         You'll get a warning that credentials are stored unsecurely. We'll be putting other production credentials here as env variables, so it is assumed that the production server contains sensitive information. I'm open to a better system, but remember that for automatic deployments to work, things have to be passwordless or Gitlab has to hold the password/secret and hand it over during CD.
 
-HERE
-Next we can do our DNS and security certificates through Cloudflare for free. I won't go into more detail since I want to let cloudflare maintain their own docs, but this might be a good starting place: [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview).
+Next we can do our DNS and security certificates through Cloudflare (for free). The first thing you'll need is a domain, so go get one of those. For the next steps, I won't go into too much detail since I want to let cloudflare maintain their own docs (see [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview)) but here are some basic steps. Please note that the process of creating a domain and provisioning certificates for it can be time consuming. If you get to a step and don't see a button or get a weird error like "this zone is not part of your account" then you probably just need to wait a few minutes (or as much as two days). Sorry, such is the nature of real production work. My experience is that I can do the following in 15 minutes without hassle:
 
-I will warn though that it's easy to end up in an infinite redirect loop if your ssl settings aren't quite right. For my setup, under Cloudflare's SSL tab I'm using "Full (Strict)" on the Universal SSL certificate. And I'm not using their automatic http => https redirect or HSTS, my http redirect is handled Traefik.
+1. Setup some special CNAME's on the DNS page for various Docker services: `api`, `traefik`, and `grafana`.
+    
+    [docker dns!](https://github.com/KCErb/lucky-hasura-docker/tree/master/img/cloudflare-dns.jpg)
 
-Please then create a `.cert` and `.key` origin certificate pair and place them in `etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double check them:
+2. Use the "Full (Strict)" encryption mode, don't use automatic `http => https` and don't use HSTS enforcement, otherwise you'll get into a redirect loop (we'll be using an origin certificate and Traefik will handle that enforcement/redirect).
+
+3. Create a `.cert` and `.key` origin certificate pair and place them in `etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double check them:
 
 ```
 etc/certs/cloudflare.cert
 etc/certs/cloudflare.key
 ```
 
+[docker certs!](https://github.com/KCErb/lucky-hasura-docker/tree/master/img/cloudflare-origin-certs.jpg)
+
 ## Production Scripts
 
-OK, let's take a look at the production/deployment scripts in LHD.
+Next we'll take a look at the scripts that are provided here for automatic deployment. The first push is special, some hand holding needs to be done. We need to have a fully running setup before these scripts can really do their magic. So instead of just running these scripts blindly, we're going walk through them and do much of what they do by hand, and then see how those manual steps have been brought together into convenient executables.
 
 ### deploy
 
-The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Please add real values to your real production setup!
+The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Let's go ahead and add the real environment variables to our production server now. The following are the environment variables from an example `~/.profile`.
+
+```
+export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
+export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
+export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
+export POSTGRES_DB=foo_bar_production
+export SECRET_KEY_BASE=z8PNMlT3pVkLCa5/IMFrEQBMhuKaU6wPHL4Aw=
+export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
+export APP_DOMAIN=foobar.business
+export LUCKY_ENV=production
+export SLACK_URL=https://hooks.slack.com/services/G61J230A7/CK9P23U17/qaGCB6TKZVFpHRng0WqTEaeX
+export SLACK_CHANNEL=alerts
+export SLACK_USER=Prometheus
+export ADMIN_USER=foo_bar_admin
+export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3O91TRh4K1
+export HASHED_PASSWORD="$apr1$Vz7vV1pF$Ip0GENX2ah09sEhp2PFaq."
+```
+
+The last 6 entries above are related to our monitoring tools, we'll come back to those later. Right now, you can fill in the above with randomly generated strings (not too long, some of these services have limits) or with whatever matches your app (`APP_DOMAIN`, `POSTGRES_DB`). The `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll see in that page of `Lucky` docs that you can generate your `SECRET_KEY_BASE` by `lucky gen.secret_key` please do that now.
+
+HERE: Do the above in new foobar server.
 
 The next thing to notice here is that we can pass an argument. If there is no argument or if its value is `add` we run in 'additive deploy' mode and if it is anything else we run in 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
@@ -242,6 +268,14 @@ You'll notice that the `update_code` function calls the following to deploy:
 `docker stack deploy -c Docker/docker-compose.yml -c Docker/docker-compose.prod.yml -c Docker/docker-compose.traefik.yml SWARM_NAME --with-registry-auth` so you'll want to understand those files. Note also that `with-registry-auth` flag is there so that you can pull images from the registry. We'll get more into that in the CD section.
 
 ### Traefik
+
+<!-- TODO -->
+ADMIN_USER
+ADMIN_PASSWORD
+HASHED_PASSWORD
+https://docs.traefik.io/middlewares/basicauth/
+```echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g```
+<!-- /TODO -->
 
 Now we'll turn our attention to connecting the wide world to our Lucky and GraphQL services. The first thing you'll need is a domain name and security certificates so that you can host a `https://example.com`. I'll assume that you took care of this back at the DigitalOcean/Cloudflare section. The second thing you'll need is a reverse proxy so that you can route requests to different services based on the address of the request. In the LHD example, if someone requests `api.example.com/v1/graphql` that request will go to Hasura and if it makes any other `api.example.com` request they'll go to Lucky. This is accomplished by routing `api.example.com` requests to the server (via CNAME records in Cloudflare) and using a neat little docker-ready reverse proxy called [Traefik](https://traefik.io).
 
