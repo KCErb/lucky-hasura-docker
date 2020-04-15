@@ -18,7 +18,9 @@ Some of the tools here will be on your local machine, others will be in the dock
 
 The first thing you'll need to do is get a Lucky project scaffolded using Lucky CLI. Here are links to the docs for how to do that on [macOS](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-macos) and [Linux](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-linux) (Windows support has not landed for Crystal yet).
 
-With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). After you name your project, the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT.
+With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local crystal might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal won't matter. 
+
+`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT.
 
 After that, the project is created and you're told to do things like `check database settings in config/database.cr`. Besides the initial `cd`, we'll **not** be following those steps because we are more interested in this running in Docker than on our own machine. (Notice we'll not even be installing Crystal locally.)
 
@@ -96,7 +98,7 @@ If you're developing on a mac, and new to Docker, it's time to hit you with some
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need to install Ruby on your local machine as well as `docker-sync`. Even if you don't plan on developing on macOS, you'll still need to install this if you don't want to modify the setup here.
+LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need to install Ruby on your local machine as well as `docker-sync`. Even if you don't plan on developing on macOS, you'll still either need to install this, or remove it from the setup here since it's hardwired in at the moment. Notice that it only syncs the `src` `db` and `spec` directories. Everything else is copied in at image build time and we use `up` to rebuild when those change.
 
 #### up
 
@@ -214,32 +216,94 @@ Next we'll take a look at the scripts that are provided here for automatic deplo
 
 ### deploy
 
-The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Let's go ahead and add the real environment variables to our production server now. The following are the environment variables from an example `~/.profile`.
+The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Let's go ahead and add the real environment variables to our production server now. The following are the first few environment variables from an example `~/.profile` (we'll do 6 more when we set up the monitoring tools).
 
 ```
 export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
 export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
 export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
 export POSTGRES_DB=foo_bar_production
-export SECRET_KEY_BASE=z8PNMlT3pVkLCa5/IMFrEQBMhuKaU6wPHL4Aw=
-export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
-export APP_DOMAIN=foobar.business
 export LUCKY_ENV=production
-export SLACK_URL=https://hooks.slack.com/services/G61J230A7/CK9P23U17/qaGCB6TKZVFpHRng0WqTEaeX
-export SLACK_CHANNEL=alerts
-export SLACK_USER=Prometheus
-export ADMIN_USER=foo_bar_admin
-export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3O91TRh4K1
-export HASHED_PASSWORD="$apr1$Vz7vV1pF$Ip0GENX2ah09sEhp2PFaq."
+export APP_DOMAIN=foobar.business
+export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
+export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
+export HASURA_GRAPHQL_JWT_SECRET='{"type": "HS256","key": "'"$SECRET_KEY_BASE"'"}'
 ```
 
-The last 6 entries above are related to our monitoring tools, we'll come back to those later. Right now, you can fill in the above with randomly generated strings (not too long, some of these services have limits) or with whatever matches your app (`APP_DOMAIN`, `POSTGRES_DB`). The `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll see in that page of `Lucky` docs that you can generate your `SECRET_KEY_BASE` by `lucky gen.secret_key` please do that now.
+You can fill in the first three entries above with randomly generated strings (not too long, some of these services have limits 63 chars or less should be safe, also, careful with special characters, you might want to check PostGres and Hasura docs if you'd like to use special chars).  The next three are more or less up to you. The postgres db name will be something you actually use so make it easy to type/read. The `LUCKY_ENV` should be `production` for both production and staging (From Wikipedia: "A stage or staging environment is an environment for testing that exactly resembles a production environment."). `APP_DOMAIN` is the domain of the app that you registered in the Cloudflare step. `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll have to go sign up with them and generate an API key. And finally, the `SECRET_KEY_BASE` comes from `lucky gen.secret_key`. You should probably run that command in the Docker container, otherwise you'll have to `shards install` locally which isn't so bad but kinda defeats the point.
 
-HERE: Do the above in new foobar server.
+Please note in the above that the special characters given to me by `sendgrid` and `lucky gen.secret_key` didn't need escaping in my shell (bash). In particular the last entry has special quoting to get that `SECRET_KEY_BASE` interpolated into JSON. I can't guarantee that in your shell the same will be true or what is the best strategy for escaping special characters. Depends on the shell and the characters! After doing this step, you might want to just run through the vars in the shell and make sure they look right.
 
-NEXT: before we can actually run the deploy script, we need to get a copy of it on the server and we need a build of the lucky image up on github. So let's turn our attention over to the build script
+The next thing `deploy` does is update the code and db and hasura metadata. These three steps only make sense if we have already built a production image and have the code hosted up on Gitlab. We haven't done either of those things so let's address that now.
 
-===> Build
+## build
+
+The first thing we'll do is work a little on the Lucky repo to put in our first bits of custom application logic. We'll just need two things to get started:
+
+1. A version route.
+2. JWT tokens that include Hasura claims.
+
+The version route is used for our Docker healthcheck. We'll get to the Docker Swarm stuff a little later, but for now, let's give it a route it can ping to know our application is healthy (responding to requests and talking to the db). You can choose whatever you like for this, I'm choosing to store a 'version' string in the DB and fetch it on request.
+
+So let's create our first model: `version`. First, open a shell in the lucky container with `docker exec -it foo_bar_lucky /bin/bash`. And then run `lucky gen.model Version`. You should get something like
+
+```
+root@5b357ed2ad28:/data# lucky gen.model Version
+Created CreateVersions::V20200415124905 in ./db/migrations/20200415124905_create_versions.cr
+Generated Version in ./src/models/version.cr
+Generated VersionOperation in ./src/operations/save_version.cr
+Generated VersionQuery in ./src/queries/version_query.cr
+```
+and you should see the corresponding files on your local system. Let's add a table by replacing the contents of `src/models/version.cr` with:
+
+```crystal
+class Version < BaseModel
+  table :versions do
+    column value : String
+  end
+end
+```
+
+and updating the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+
+```crystal
+class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
+  def migrate
+    # Learn about migrations at: https://luckyframework.org/guides/database/migrations
+    create table_for(Version) do
+      primary_key id : Int64
+      add_timestamps
+      add value : String # <<< LIKE THIS
+    end
+  end
+
+  def rollback
+    drop table_for(Version)
+  end
+end
+```
+
+Next we'll add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+
+```crystal
+class Version::Get < ApiAction
+  get "/version" do
+    version = VersionQuery.first?
+    if version
+      json({version: version.value})
+    else
+      json({error: "Unable to reach database"}, 503)
+    end
+  end
+end
+```
+
+and then seed the database
+
+
+??? and deploy? why not? => (no swarm running upstream yet, need code and image there to start it!) 
+
+// Just need some kinda commit comment that gets a CIDCD env variable we can explain the add/sub/init thing in that context yeah?
 
 The next thing to notice here is that we can pass an argument. If there is no argument or if its value is `add` we run in 'additive deploy' mode and if it is anything else we run in 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
@@ -271,15 +335,24 @@ You'll notice that the `update_code` function calls the following to deploy:
 
 `docker stack deploy -c Docker/docker-compose.yml -c Docker/docker-compose.prod.yml -c Docker/docker-compose.traefik.yml SWARM_NAME --with-registry-auth` so you'll want to understand those files. Note also that `with-registry-auth` flag is there so that you can pull images from the registry. We'll get more into that in the CD section.
 
+# Monitoring tools
+
+export SLACK_URL=https://hooks.slack.com/services/G61J230A7/CK9P23U17/qaGCB6TKZVFpHRng0WqTEaeX
+export SLACK_CHANNEL=alerts
+export SLACK_USER=Prometheus
+export ADMIN_USER=foo_bar_admin
+export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3O91TRh4K1
+export HASHED_PASSWORD="$apr1$Vz7vV1pF$Ip0GENX2ah09sEhp2PFaq."
+
 ### Traefik
 
-<!-- TODO -->
+TODO::
 ADMIN_USER
 ADMIN_PASSWORD
 HASHED_PASSWORD
 https://docs.traefik.io/middlewares/basicauth/
 ```echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g```
-<!-- /TODO -->
+
 
 Now we'll turn our attention to connecting the wide world to our Lucky and GraphQL services. The first thing you'll need is a domain name and security certificates so that you can host a `https://example.com`. I'll assume that you took care of this back at the DigitalOcean/Cloudflare section. The second thing you'll need is a reverse proxy so that you can route requests to different services based on the address of the request. In the LHD example, if someone requests `api.example.com/v1/graphql` that request will go to Hasura and if it makes any other `api.example.com` request they'll go to Lucky. This is accomplished by routing `api.example.com` requests to the server (via CNAME records in Cloudflare) and using a neat little docker-ready reverse proxy called [Traefik](https://traefik.io).
 
