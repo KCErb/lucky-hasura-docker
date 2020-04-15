@@ -195,7 +195,7 @@ Next we can do our DNS and security certificates through Cloudflare (for free). 
 
 1. Setup some special CNAME's on the DNS page for various Docker services: `api`, `traefik`, and `grafana`.
     
-    [docker dns!](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-dns.jpg)
+    ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-dns.jpg)
 
 2. Use the "Full (Strict)" encryption mode, don't use automatic `http => https` and don't use HSTS enforcement, otherwise you'll get into a redirect loop (we'll be using an origin certificate and Traefik will handle that enforcement/redirect).
 
