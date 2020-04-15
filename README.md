@@ -195,18 +195,18 @@ Next we can do our DNS and security certificates through Cloudflare (for free). 
 
 1. Setup some special CNAME's on the DNS page for various Docker services: `api`, `traefik`, and `grafana`.
     
-    [docker dns!](https://github.com/KCErb/lucky-hasura-docker/tree/master/img/cloudflare-dns.jpg)
+    [docker dns!](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-dns.jpg)
 
 2. Use the "Full (Strict)" encryption mode, don't use automatic `http => https` and don't use HSTS enforcement, otherwise you'll get into a redirect loop (we'll be using an origin certificate and Traefik will handle that enforcement/redirect).
 
 3. Create a `.cert` and `.key` origin certificate pair and place them in `etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double check them:
 
-```
-etc/certs/cloudflare.cert
-etc/certs/cloudflare.key
-```
+    ```
+    etc/certs/cloudflare.cert
+    etc/certs/cloudflare.key
+    ```
 
-[docker certs!](https://github.com/KCErb/lucky-hasura-docker/tree/master/img/cloudflare-origin-certs.jpg)
+    ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-origin-certs.jpg)
 
 ## Production Scripts
 
@@ -233,9 +233,13 @@ export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3O91TRh4K1
 export HASHED_PASSWORD="$apr1$Vz7vV1pF$Ip0GENX2ah09sEhp2PFaq."
 ```
 
-The last 6 entries above are related to our monitoring tools, we'll come back to those later. Right now, you can fill in the above with randomly generated strings (not too long, some of these services have limits) or with whatever matches your app (`APP_DOMAIN`, `POSTGRES_DB`). The `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll see in that page of `Lucky` docs that you can generate your `SECRET_KEY_BASE` by `lucky gen.secret_key` please do that now.
+The last 6 entries above are related to our monitoring tools, we'll come back to those later. Right now, you can fill in the above with randomly generated strings (not too long, some of these services have limits) or with whatever matches your app (`APP_DOMAIN`, `POSTGRES_DB`). The `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll see in that page of `Lucky` docs that you can generate your `SECRET_KEY_BASE` by `lucky gen.secret_key` please do that now.
 
 HERE: Do the above in new foobar server.
+
+NEXT: before we can actually run the deploy script, we need to get a copy of it on the server and we need a build of the lucky image up on github. So let's turn our attention over to the build script
+
+===> Build
 
 The next thing to notice here is that we can pass an argument. If there is no argument or if its value is `add` we run in 'additive deploy' mode and if it is anything else we run in 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
