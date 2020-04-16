@@ -152,6 +152,12 @@ This script does the reverse of `up`. It tears down the sync-volumes and removes
 
 The other scripts are all for production, so you can read about them further down in the `production` section of this guide. Or if you're not planning on using the production tools here you can just delete them.
 
+## Setup Hasura
+
+I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone elses. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management and Authentication) from our presentation (GraphQL).
+
+TODO:::
+
 ## From Development to Production
 
 And now, it is decision time. If you're not much interested in deploying your project to a server whenever you push to a special branch, then you should delete the provided `.gitlab-ci.yml` and this is where we part ways. Good luck to you, please feel free to open an issue or a PR to improve this project in making it more geared towards people like yourself. I'd be happy to support you and them here :)
@@ -288,9 +294,9 @@ Next we'll add a route to `GET` the current version. Put the following in `src/a
 ```crystal
 class Version::Get < ApiAction
   get "/version" do
-    version = VersionQuery.first?
-    if version
-      json({version: version.value})
+    last_version = VersionQuery.last?
+    if last_version
+      json({version: last_version.value})
     else
       json({error: "Unable to reach database"}, 503)
     end
@@ -298,10 +304,21 @@ class Version::Get < ApiAction
 end
 ```
 
-and then seed the database
+Lastly, we'll add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
+```crystal
+last_version = VersionQuery.last?
+if last_version
+  current_version = `git rev-parse --short=8 HEAD`.rchop
+  SaveVersion.create!(value: "#{current_version}") if last_version != current_version
+else
+  SaveVersion.create!(value: "first-commit")
+end
+```
 
-??? and deploy? why not? => (no swarm running upstream yet, need code and image there to start it!) 
+Let's run ... (what? use up to run update_db in the container??? just plain ssh in and run migration / required seeds??)
+
+###>>> With the above all done, I think we are ready to commit and push with a special message ...
 
 // Just need some kinda commit comment that gets a CIDCD env variable we can explain the add/sub/init thing in that context yeah?
 
