@@ -3,8 +3,8 @@ services:
   postgres:
     restart: always
     volumes:
-    - db_data:/var/lib/postgresql/data
-    container_name: PROJECT_NAME_postgres
+    - db-data:/var/lib/postgresql/data
+    container_name: bar_buzz_postgres
     environment: 
       POSTGRES_HOST_AUTH_METHOD: "trust"
   hasura:
@@ -15,32 +15,29 @@ services:
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/postgres
       HASURA_GRAPHQL_ADMIN_SECRET: secret
-      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "SECRET_KEY_BASE_HERE"}'
-    container_name: PROJECT_NAME_hasura
+      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "nAO9amrfaPB649iQ5LCK8SpWyKbF6ecfe9ctvGLIUvc="}'
+    container_name: bar_buzz_hasura
     tty: true
     restart: always
   lucky:
     build:
       context: ../
       dockerfile: Docker/lucky/Dockerfile
-    image: PROJECT_NAME_lucky:dev
+    image: bar_buzz_lucky:dev
     volumes:
-    - src-sync:/data/src:nocopy
-    - spec-sync:/data/spec:nocopy
-    - db-sync:/data/db:nocopy
+    - app-sync:/data:nocopy
+    - /data/bin/
+    - /data/lib/
+    - /data/.shards/
     ports:
     - 5000:5000
     environment:
       DATABASE_URL: postgres://postgres:@postgres:5432/postgres
       SHARDS_CACHE_PATH: /data/.shards
     tty: true
-    container_name: PROJECT_NAME_lucky
+    container_name: bar_buzz_lucky
 volumes:
-  src-sync:
+  app-sync:
     external: true
-  spec-sync:
-    external: true
-  db-sync:
-    external: true
-  db_data:
-    name: PROJECT_NAME_data
+  db-data:
+    name: bar_buzz_data

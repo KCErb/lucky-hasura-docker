@@ -96,11 +96,11 @@ Before going on, check if you understand this sentence: this is a multi-containe
 
 #### docker-sync
 
-If you're developing on a mac, and new to Docker, it's time to hit you with some bad news: Docker is slow on macOS. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on macOS and doesn't interfere with normal Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
+If you're developing on a mac, and new to Docker, it's time to hit you with some bad news: Docker is slow on macOS. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on anything other than Linux and doesn't interfere with those on your team doing Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it already and a `.ruby-version` but you'll need to install Ruby on your local machine as well as `docker-sync`. Even if you don't plan on developing on macOS, you'll still either need to install this, or remove it from the setup here since it's hardwired in at the moment. Notice that it only syncs the `src` `db` and `spec` directories. Everything else is copied in at image build time and we use `up` to rebuild when those change.
+LHD has a `docker-sync.yml` in it already and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still either need to install this, or remove it from the setup here since it's hardwired in at the moment. Notice that it only syncs the `src` `db` and `spec` directories. Everything else is copied in at image build time and we use `up` to rebuild when those change.
 
 #### up
 

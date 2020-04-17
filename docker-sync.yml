@@ -5,12 +5,7 @@ options:
   compose-dev-file-path: 'Docker/docker-compose.dev.yml'
 
 syncs:
-  src-sync:
-    src: './src'
+  app-sync:
+    src: './'
     notify_terminal: true
-  spec-sync:
-    src: './spec'
-    notify_terminal: true
-  db-sync:
-    src: './db'
-    notify_terminal: true
+    sync_excludes: ['.shards', 'bin', 'lib', start_server, tmp]

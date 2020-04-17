@@ -12,14 +12,17 @@ docker-sync start | indent
 up -d | indent
 
 printf "\n▸ Running update-db\n"
-docker exec -ti PROJECT_NAME_lucky script/docker/update-db
+docker exec -ti bar_buzz_lucky script/docker/update-db
+
+printf "\n▸ Daemonizing lucky watch\n"
+docker exec -d bar_buzz_lucky lucky watch
 
 printf "\n▸ Starting hasura console\n"
 until curl -s http://localhost:8080/v1/version > /dev/null; do
   >&2 echo "Hasura is unavailable - sleeping"
   sleep 2
 done
-docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
+docker exec -td bar_buzz_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
 
 printf "\n▸ Setting migrations mode to off\n"
 until curl -s http://localhost:9693/apis/migrate/settings > /dev/null; do

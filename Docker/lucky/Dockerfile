@@ -15,12 +15,9 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-# Install shards - that means we need to rebuild to update shards
 RUN mkdir /data
 COPY . /data
-RUN rm -rf /data/bin/* /data/lib/*
 WORKDIR /data
-COPY shard.* ./
 RUN shards install
 
 # Build health check
@@ -29,5 +26,6 @@ RUN crystal build script/docker/lucky_healthcheck.cr -o script/docker/lucky_heal
 EXPOSE 5000
 
 # After this line dev and prod Dockerfiles differ
+# build server to test that we have working crystal + lucky env
 RUN crystal build src/start_server.cr -o bin/server
-CMD ["/data/script/docker/wait-for-postgres", "lucky watch"]
+CMD ["/bin/bash"]
