@@ -21,6 +21,7 @@ services:
       POSTGRES_PASSWORD:
       POSTGRES_DB:
       HASURA_GRAPHQL_DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
+      HASURA_GRAPHQL_JWT_SECRET:
     healthcheck:
       test: ["CMD", "/script/docker/hasura_healthcheck"]
     deploy:

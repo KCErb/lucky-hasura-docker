@@ -80,6 +80,8 @@ echo '\n.docker-sync/' >> foo_bar/.gitignore
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
 
+The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (for me this is line 17). The string that follows is your development mode secret key base and will be used to sign the JWTs you'll be passing to Hasura. It gets randomly generated on project creation so I need you to paste this in your `Docker/docker-compose.dev.yml` so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option which you can implement by reading the docs). I've marked the spot where this string goes with `SECRET_KEY_BASE_HERE`.
+
 ### Docker Intro
 
 Assuming you've installed Docker and can use it on your local machine, let's learn a bit about the Docker config/tools that are provided by LHD.
@@ -156,7 +158,23 @@ The other scripts are all for production, so you can read about them further dow
 
 I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone elses. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management and Authentication) from our presentation (GraphQL).
 
-TODO:::
+First we'll need to get Lucky to produce the kind of JWT that Hasura can understand. Go into `src/models/user_token.cr` and replace the `payload` with
+
+```crystal
+payload = {"exp" => exp, "user_id" => user.id,
+  "https://hasura.io/jwt/claims" => {
+    "x-hasura-allowed-roles" => ["user"],
+    "x-hasura-default-role" => "user",
+    "x-hasura-user-id" => user.id.to_s,
+  }
+}
+```
+If you watch the Docker logs in your `foo_bar_lucky` container, you should notice that as soon as you save changes to this file, the app recompiles. Now let's seed the database with our admin user. Just add these two lines to the `call` method in `tasks/create_required_seeds`.
+
+```crystal
+user = UserQuery.new.email("admin@foo_bar.business").first?
+UserBox.create &.email("admin@foo_bar.business") unless user
+```
 
 ## From Development to Production
 
@@ -307,13 +325,11 @@ end
 Lastly, we'll add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
 ```crystal
+current_version = `git rev-parse --short=8 HEAD`.rchop
+current_version = "pre-first-commit" unless current_version.size > 0
 last_version = VersionQuery.last?
-if last_version
-  current_version = `git rev-parse --short=8 HEAD`.rchop
-  SaveVersion.create!(value: "#{current_version}") if last_version != current_version
-else
-  SaveVersion.create!(value: "first-commit")
-end
+version_is_same = last_version && last_version == current_version
+SaveVersion.create!(value: current_version) unless version_is_same
 ```
 
 Let's run ... (what? use up to run update_db in the container??? just plain ssh in and run migration / required seeds??)
