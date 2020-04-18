@@ -104,9 +104,9 @@ LHD has a `docker-sync.yml` in it already and a `.ruby-version` but if you don't
 
 #### up
 
-The last thing you'll need locally is `up`. You don't need this if you are already comfortable using Docker in development, in that case you probably already have your own workflow and you can use it instead. For the rest of us, `up` is simply a tool that keeps an eye on what local files were used to build a Docker image and takes note if any of them change. That way, instead of getting into the habit of starting our project with `docker-compose up` which can lead to surprises if you forget that you needed to rebuild your image(s), you can get in to the habit of having an `up.yml` and then simply calling `up`.
+The last thing you'll need locally is `up`. You don't need this if you are already comfortable using Docker in development, in that case you probably already have your own workflow and you can use it instead (just be sure to replace `up` in `script/up` and `script/down`). For the rest of us, `up` is simply a tool that keeps an eye on what local files were used to build a Docker image and takes note if any of them change. That way, instead of getting into the habit of starting our project with `docker-compose up` which can lead to surprises if you forget that you needed to rebuild your image(s), you can get into the habit of having an `up.yml` and then simply calling `up`.
 
-This is a lesser-known tool because it is new. So far it seems to be taking a role as a stepping-stone instead of a production tool, but it's been fine for me so far. Go ahead and install it according to instructions:
+This is a lesser-known tool because it is new. So far it seems to be taking a role as a stepping-stone instead of a production tool, but it's been fine for me so far. Go ahead and install it according to instructions and read a little about its usefulness:
 
 [github.com/paulcsmith/up](https://github.com/paulcsmith/up)
 
@@ -117,9 +117,13 @@ Now with all of that introduced, we can talk about the files provided in `LHD/Do
 
 As for the directories in here, we have `traefik` and `prometheus-swarm` which are used in production (we'll come back to them) and `lucky` which is where the `Dockerfile`s reside for creating the production and development images. 
 
-The reason there are two images is that while `production` is stateless, `development` is syncing from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development.
+The reason there are two images is that while `production` is stateless, `development` is syncing from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development. The one thing our development image has beyond crystal and lucky is shards and executables (in `lib`, `.shards`, and `bin`). These are kept in the image for a few reasons:
 
-Besides these last few lines, we don't want these files to diverge! Shouldn't there be a better way to guarantee this? Yes, but not without having to have a base image which then two more images would build from. That would be cleaner, and perhaps worth it in the long run, but until then, this is the solution I've settled on.
+1. Docker development on something besides Linux requires a `sync` strategy and IO-intenstive activities like `shards install` can actually crash your instance! (That's why the `.dockerignore` and `docker-sync.yml` files ignore those directories.)
+2. Developers need to be working with the same dependency trees. That is already taken care of by `shard.lock` but why re-install if you can simply stick your shard in an image to share?
+3. If the shards produce binaries, they will be machine dependent.
+
+That means we have to rebuild the image whenever we want to update Crystal, Lucky, or our shards and we leave this to `up`. Whenever we run a command, `up lucky db.migrate` for example, `up` will double check that our development image doesn't need to be rebuilt first based on the rules in `up.yml`.
 
 ## Scripts folder
 

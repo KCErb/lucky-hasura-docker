@@ -7,15 +7,10 @@ source "${BASH_SOURCE%/*}/functions/commons"
 
 check_for_up
 
-printf "\n▸ Bringing containers up\n"
+printf "\n▸ Bringing containers up (builds lucky if needed)\n"
 docker-sync start | indent
 up -d | indent
-
-printf "\n▸ Running update-db\n"
-docker exec -ti bar_buzz_lucky script/docker/update-db
-
-printf "\n▸ Daemonizing lucky watch\n"
-docker exec -d bar_buzz_lucky lucky watch
+printf "\n✔ Containers are up, lucky-dev is initializing in the background.\n"
 
 printf "\n▸ Starting hasura console\n"
 until curl -s http://localhost:8080/v1/version > /dev/null; do
