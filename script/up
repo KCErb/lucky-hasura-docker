@@ -14,7 +14,7 @@ printf "\n✔ Containers are up, lucky-dev is initializing in the background.\n"
 
 printf "\n▸ Starting hasura console\n"
 until curl -s http://localhost:8080/v1/version > /dev/null; do
-  >&2 echo "Hasura is unavailable - checking again in 5s"
+  >&2 echo "Hasura is unavailable - checking again in 5s" | indent
   sleep 5
 done
 docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser

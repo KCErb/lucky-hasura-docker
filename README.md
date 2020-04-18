@@ -160,7 +160,7 @@ The other scripts are all for production, so you can read about them further dow
 
 ## Setup Hasura
 
-I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone elses. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management and Authentication) from our presentation (GraphQL).
+I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone else's. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management, authentication, nightly biller etc.) from our presentation (GraphQL).
 
 Now let's seed the database with two users. An admin user and a regular user. Just add these lines to the `call` method in `tasks/create_required_seeds`.
 
@@ -178,11 +178,15 @@ Next, we'll need to get Lucky to produce the kind of JWT that Hasura can underst
 
 ```crystal
 allowed_roles = ["user"]
-allowed_roles << "admin" if user.email.includes?("admin")
+default_role = "user"
+if user.email.includes?("admin")
+  allowed_roles << "admin" 
+  default_role = "admin"
+end
 payload = {"user_id" => user.id,
   "https://hasura.io/jwt/claims" => {
     "x-hasura-allowed-roles" => allowed_roles,
-    "x-hasura-default-role" => "user",
+    "x-hasura-default-role" => default_role,
     "x-hasura-user-id" => user.id.to_s,
   }
 }
@@ -211,13 +215,88 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 }
 ```
 
-And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's setup Hasura to know about the permissions we want those roles to have and try making a GraphQL query.
+And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'm using Insomnia for this, in that application I can just paste my GraphQL query in one box, and my 'Bearer' token in the other and it works. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql`
 
->>> HERE Hasura permissions + screenshots and an example Hasura GraphQL request. I'm going to recommend Insomnia since it has GraphQL support which will make your job easier.
+```
+query MyQuery {
+  users {
+    email
+  }
+}
+```
+
+and receive in response
+
+```
+{
+  "data": {
+    "users": [
+      {
+        "email": "admin@foo_bar.business",
+      },
+      {
+        "email": "buzz@foo_bar.business",
+      }
+    ]
+  }
+}
+```
+
+Now, if you try that with the token you get from signing in as `buzz` you'll get the following
+
+```
+{
+  "errors": [
+    {
+      "extensions": {
+        "path": "$.selectionSet.users",
+        "code": "validation-failed"
+      },
+      "message": "field \"users\" not found in type: 'query_root'"
+    }
+  ]
+}
+```
+
+That's because Hasura doesn't know about our `user` role and that it should at least be able to see its own email. Let's go to the dashboard and add that, again I'd rather leave the details to the Hasura docs, but here's a screenshot of the permissions I set to help you get off on the right foot:
+
+![hasura permissions screen](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/user-permissions.jpg)
+
+I just entered a new role called 'users' and edited the 'select' permission to allow a user to query their own email. Now the response is
+
+```
+{
+  "data": {
+    "users": [
+      {
+        "email": "buzz@foo_bar.business"
+      }
+    ]
+  }
+}
+```
+
+As a last check, you should see that `db/hasura/migrations/metadata.yml` now looks like this:
+
+```
+version: 2
+tables:
+- table:
+    schema: public
+    name: users
+  select_permissions:
+  - role: user
+    permission:
+      columns:
+      - email
+      filter:
+        id:
+          _eq: X-Hasura-User-Id
+```
 
 ## From Development to Production
 
-And now, it is decision time. If you're not much interested in deploying your project to a server whenever you push to a special branch, then you should delete the provided `.gitlab-ci.yml` and this is where we part ways. Good luck to you, please feel free to open an issue or a PR to improve this project in making it more geared towards people like yourself. I'd be happy to support you and them here :)
+And now, it is decision time. If you're not much interested in deploying your project to a server whenever you push to a special branch then you should delete the provided `.gitlab-ci.yml` and this is where we part ways. Good luck to you, please feel free to open an issue or a PR to improve this project in making it more geared towards people like yourself. I'd be happy to support you and them here :)
 
 If you are however interested in getting some of the awesome benefits I've put together here, then the next step will be to start thinking about deployment. We'll be commiting and push our project to the `master` branch on Gitlab and that will kick off a deployment to a production server. So before we push this proejct up, we'll need to provision such a server and get some environment variables put together in Gitlab and on the server so that things go smoothly.
 
