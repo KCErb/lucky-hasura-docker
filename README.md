@@ -146,7 +146,7 @@ The main ideas to notice here are
 2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres` loop running under the hood too).
 
 
-Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.`. Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) that means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`. 
+Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.` after about a minute (the message `Hasura is unavailable - checking again in 5s` might show a good 10 times on the first go, just be patient). Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) that means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`. 
 
 Lastly, be sure to take a look at your docker containers, you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll!
 
@@ -162,23 +162,58 @@ The other scripts are all for production, so you can read about them further dow
 
 I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone elses. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management and Authentication) from our presentation (GraphQL).
 
-First we'll need to get Lucky to produce the kind of JWT that Hasura can understand. Go into `src/models/user_token.cr` and replace the `payload` with
+Now let's seed the database with two users. An admin user and a regular user. Just add these lines to the `call` method in `tasks/create_required_seeds`.
 
 ```crystal
-payload = {"exp" => exp, "user_id" => user.id,
+%w{admin buzz}.each do |name|
+  email = name + "@foo_bar.business"
+  user = UserQuery.new.email(email).first?
+  UserBox.create &.email(email) unless user
+end
+```
+
+And then you can run `up lucky db.create_required_seeds` and they'll be added to your database. You'll be able to see that for yourself if you go to `localhost:9695` (your Hasura Console) and you can run a GraphQL query (first track the table with Hasura ... and read their docs if you're new).
+
+Next, we'll need to get Lucky to produce the kind of JWT that Hasura can understand. Go into `src/models/user_token.cr` and replace the `payload` with
+
+```crystal
+allowed_roles = ["user"]
+allowed_roles << "admin" if user.email.includes?("admin")
+payload = {"user_id" => user.id,
   "https://hasura.io/jwt/claims" => {
-    "x-hasura-allowed-roles" => ["user"],
+    "x-hasura-allowed-roles" => allowed_roles,
     "x-hasura-default-role" => "user",
     "x-hasura-user-id" => user.id.to_s,
   }
 }
 ```
-If you watch the Docker logs in your `foo_bar_lucky` container, you should notice that as soon as you save changes to this file, the app recompiles. Now let's seed the database with our admin user. Just add these two lines to the `call` method in `tasks/create_required_seeds`.
 
-```crystal
-user = UserQuery.new.email("admin@foo_bar.business").first?
-UserBox.create &.email("admin@foo_bar.business") unless user
+Please don't use this in production, just a demo :)
+
+Note: If you watch the Docker logs in your `foo_bar_lucky` container, you should notice that as soon as you save changes to this file, the app recompiles. You don't need to do anything else to build or serve the app, just save changes, and wait a second for it to recompile.
+
+Now we should be able to post the username and password to `localhost:5000/api/sign_ins` and get back our JWT:
+
 ```
+curl localhost:5000/api/sign_ins -X POST -d "user:email=admin@foo_bar.business" -d "user:password=password"
+```
+
+(If you look in `spec/support/boxes/user_box.cr` you'll see that the default password is "password".)
+
+Notice that the top-level key is `user`, so if you wanted instead to POST json it would be in this shape:
+
+```json
+{
+	"user": {
+		"email": "admin@foo_bar.business",
+		"password": "password"
+	}
+}
+```
+
+And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's setup Hasura to know about the permissions we want those roles to have and try making a GraphQL query.
+
+>>> HERE Hasura permissions + screenshots and an example Hasura GraphQL request. I'm going to recommend Insomnia since it has GraphQL support which will make your job easier.
 
 ## From Development to Production
 
