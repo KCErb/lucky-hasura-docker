@@ -17,7 +17,7 @@ until curl -s http://localhost:8080/v1/version > /dev/null; do
   >&2 echo "Hasura is unavailable - sleeping"
   sleep 2
 done
-docker exec -td bar_buzz_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
+docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
 
 printf "\n▸ Setting migrations mode to off\n"
 until curl -s http://localhost:9693/apis/migrate/settings > /dev/null; do

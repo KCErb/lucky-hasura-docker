@@ -51,7 +51,7 @@ The first two are used in commands like `git clone` to pull down your repo (i.e.
 
 `PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project name to be `lhd`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names. (Not to mention that in Crystal land the project `foo_bar` will be in namespace `FooBar` while the project `foo-bar` will be in namespace `Foo::Bar`.)
 
-So go ahead and use sed, or your IDE or whatever you like to replace those throughout your copy of this repo. The following might be handy:
+So go ahead and use sed, or your IDE or whatever you like to replace those throughout your copy of the LHD repo. The following might be handy:
 
 **Linux**
 
@@ -67,7 +67,7 @@ So go ahead and use sed, or your IDE or whatever you like to replace those throu
     git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
     git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
 
-Once that's done, you can move (almost) all of the files over to your lucky app. I recommend removing some files from the lucky repo since they are intended for a different dev workflow:
+Once that's done, you can move (almost) all of the files over to your lucky app. The following excerpt assumes your project and LHD are setup next to eachother from some repo such as `git/lucky-hasura-docker` and `git/foo_bar`. It removes all of the Lucky scripts in `foo_bar/script` because as of this version, those are not needed in LHD development. It also removes the `Procfile`s and copies almost everything from LHD to `foo_bar`:
 
 ```
 rm -rf foo_bar/script
