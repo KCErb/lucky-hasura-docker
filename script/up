@@ -7,23 +7,28 @@ source "${BASH_SOURCE%/*}/functions/commons"
 
 check_for_up
 
-printf "\n▸ Bringing containers up (builds lucky if needed)\n"
+printf "\n▸ Initializing database (builds lucky if needed)\n"
 docker-sync start | indent
+up /data/script/docker/update-db
+
+printf "\n▸ Bringing containers up\n"
 up -d | indent
-printf "\n✔ Containers are up, lucky-dev is initializing in the background.\n"
 
 printf "\n▸ Starting hasura console\n"
-until curl -s http://localhost:8080/v1/version > /dev/null; do
-  >&2 echo "Hasura is unavailable - checking again in 5s" | indent
+until curl -s http://localhost:8080/healthz > /dev/null; do
+  printf "Hasura not ready - checking again in 5s\n" | indent
   sleep 5
 done
+printf "✔ Hasura is ready. Starting UI console on 9695.\n"
 docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser
 
 printf "\n▸ Setting migrations mode to off\n"
 until curl -s http://localhost:9693/apis/migrate/settings > /dev/null; do
-  >&2 echo "Console is unavailable - sleeping" | indent
-  sleep 2
+  printf "Console is unavailable - checking again in 5s\n" | indent
+  sleep 5
 done
 curl -sH 'Content-Type: application/json' -X PUT -d '{"name": "migration_mode", "value": "false"}' http://localhost:9693/apis/migrate/settings > /dev/null | indent
 
-printf "\n✔ All done.\n"
+printf "\n✔ Setup is finished!\n"
+
+docker logs -f PROJECT_NAME_lucky

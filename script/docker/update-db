@@ -6,21 +6,32 @@ set -o pipefail
 source "${BASH_SOURCE%/*}/../functions/commons"
 
 printf "\n▸ Migrating once postgres is up\n"
+/data/script/docker/wait-for-postgres
+
+DB_NAME="${LUCKY_ENV:-development}"
+
+printf "\n▸ Creating $DB_NAME database.\n"
 if [ "$LUCKY_ENV" == "production" ]; then
-  /data/script/docker/wait-for-postgres /data/tasks/run_task db.migrate | indent
+  /data/tasks/run_task db.create | indent
 else
-  /data/script/docker/wait-for-postgres lucky db.migrate | indent
+  lucky db.create | indent
 fi
 
-
-printf "\n▸ Seeding the database with required seeds\n"
+printf "\n▸ Migrating database.\n"
 if [ "$LUCKY_ENV" == "production" ]; then
-  /data/script/docker/wait-for-postgres /data/tasks/run_task db.create_required_seeds | indent
+  /data/tasks/run_task db.migrate | indent
 else
-  /data/script/docker/wait-for-postgres lucky db.create_required_seeds | indent
+  lucky db.migrate | indent
 fi
 
-if [ "$LUCKY_ENV" != "production" ]; then
-  printf "\n▸ Seeding the database with sample seeds\n"
-  lucky db.create_sample_seeds | indent
+# No need to seed in test mode since tests truncate the db
+if [ "$LUCKY_ENV" != "test" ]; then
+  printf "\n▸ Seeding database with required seeds\n"
+  if [ "$LUCKY_ENV" == "production" ]; then
+    /data/tasks/run_task db.create_required_seeds | indent
+  else
+    lucky db.create_required_seeds | indent
+    printf "\n▸ Seeding the database with sample seeds\n"
+    lucky db.create_sample_seeds | indent
+  fi
 fi

@@ -6,4 +6,4 @@ COPY . /data
 
 # After this point the file differs from prod
 RUN shards install
-CMD ["/data/script/docker/lucky-dev"]
+CMD ["lucky", "watch"]

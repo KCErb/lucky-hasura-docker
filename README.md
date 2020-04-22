@@ -73,7 +73,7 @@ Once that's done, you can move (almost) all of the files over to your lucky app.
 rm -rf foo_bar/script
 rm foo_bar/Procfile
 rm foo_bar/Procfile.dev
-rsync -avr --exclude='.git' --exclude='README.md' lucky-hasura-docker/ foo_bar
+rsync -avr --exclude='.git' --exclude='/README.md' lucky-hasura-docker/ foo_bar
 # add .docker-sync dir to git ignore
 echo '\n.docker-sync/' >> foo_bar/.gitignore
 ```
@@ -152,7 +152,15 @@ Lastly, be sure to take a look at your docker containers, you should see `foo_ba
 
 ### script/down
 
-This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. Also if you are looking for a deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
+This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. You can use `up` for things like that. If you are looking for a _deep_ deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
+
+WARNING: I haven't tested this script on a machine where I have multiple Docker projects, so this might have unexpected side effects like stopping or removing containers/volumes unexpectedly. It shouldn't, but it's not properly tested.
+
+### script/test
+
+This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up`. If all goes well, you should be able to just run this script, see the tests pass, and it'll clean up after itself. It is important that you use this script (or something similar to it) to run tests since since we are using a hard-coded `DATABASE_URL` for Lucky. Your tests will run on whatever database that URL is set to. Since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite. 
+
+It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since this script sets up the database first to let Hasura talk to it and then runs the Lucky spec suite.
 
 ### Other Scripts
 
@@ -293,6 +301,10 @@ tables:
         id:
           _eq: X-Hasura-User-Id
 ```
+
+### Test Hasura
+
+Now let's add the above to our Lucky test suite.
 
 ## From Development to Production
 

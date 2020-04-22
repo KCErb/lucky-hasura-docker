@@ -2,8 +2,6 @@
 # Exit if any subcommand fails
 set -e
 
-cmd="$@"
-
 if [ -z ${POSTGRES_USER+x} ]; then
   >&2 echo "POSTGRES_USER var is not set, defaulting to postgres"
   POSTGRES_USER=postgres
@@ -23,5 +21,4 @@ until PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -h $POSTGRES_HOST -c 
   sleep 1
 done
 
->&2 echo "Postgres is up - executing command"
-exec $cmd
+>&2 echo "✔ Postgres is up!"

@@ -13,7 +13,7 @@ services:
     - 9695:9695
     - 9693:9693
     environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/postgres
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
       HASURA_GRAPHQL_ADMIN_SECRET: secret
       HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "SECRET_KEY_BASE_HERE"}'
     container_name: PROJECT_NAME_hasura
@@ -32,7 +32,7 @@ services:
     ports:
     - 5000:5000
     environment:
-      DATABASE_URL: postgres://postgres:@postgres:5432/postgres
+      DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
       SHARDS_CACHE_PATH: /data/.shards
     tty: true
     container_name: PROJECT_NAME_lucky

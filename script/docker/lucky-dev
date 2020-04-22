@@ -1,3 +1,0 @@
-#!/bin/sh
-/data/script/docker/update-db
-lucky watch
