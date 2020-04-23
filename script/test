@@ -9,6 +9,7 @@ start_lucky() {
   # up run -e DATABASE_URL=postgres etc.
   # - docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
   docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky
+  sleep 5 # filing bug on this right now
   docker exec -it PROJECT_NAME_lucky_test /data/script/docker/update-db
 }
 

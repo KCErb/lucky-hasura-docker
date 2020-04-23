@@ -1,14 +1,14 @@
 # LHD
 
-Hi there, this is a quick writeup explaining a particular tech stack that I've been working on. The basic idea here is that I want my frontend apps to talk to the (Postgres) database via [GraphQL](https://graphql.org). [Hasura](https://hasura.io) is a great tool for painlessly adding a GraphQL layer to a Postgres database. As such, Hasura doesn't actually handle business logic. [Lucky](https://luckyframework.org) is a great web framework that we can use to handle the business logic as well as anything else not GraphQL related.
+Hi there, this is a quick writeup explaining a particular tech stack that I've been working on. The basic idea here is that I want my frontend apps to talk to the (Postgres) database via [GraphQL](https://graphql.org). [Hasura](https://hasura.io) is a great tool for painlessly adding a GraphQL layer to a Postgres database. As such, Hasura doesn't actually handle business logic. [Lucky](https://luckyframework.org) is a great web framework that we can use to handle the business logic, database migrations, and anything else not GraphQL related.
 
-If you're not familiar with any of the links above, please click and read since this tutorial is more about putting them together and less about why they are a good choice or how to use them.
+If you're not familiar with any of these tools, please click on the links above and read since this tutorial is more about putting them together and less about why they are a good choice or how to use them. Much of the following assumes you have at least a cursory knowledge of GraphQL, Hasura, and Lucky.
 
 And how is it that we put it all together? Docker.
 
 Yes, that's Docker with a period, not an exclamation point. I'm not gonna lie, this project has taken a little skip out of my step with respect to Docker. The rainbows may have faded, but at the end is a pot of steel ingots, not as shiney as gold but still valuable and very useful.
 
-There are two sections of this writeup, the first is on using Docker to get these tools up together in development, the second is on doing it all in production (with Docker Swarm). As usual, development is just the tip of the iceburg. Much of what's written here and available in the example project is dedicated to having really nice production-grade automated deployment.
+There are two sections of this writeup, the first is on using Docker to get these tools up together in development, the second is on doing it all in production (with Docker Swarm). As usual, development is just the tip of the iceburg. Much of what's written here and available in the example project is dedicated to having really nice production-grade automated deployment. So if you don't plan to use Docker in production, that's fine, I think the first half will still be useful, but be aware that that wasn't my intent when creating this project initially. If there is interest and PRs I'd be happy to make this more development-only friendly.
 
 # Lucky + Hasura via Docker in Development
 
@@ -18,11 +18,13 @@ Some of the tools here will be on your local machine, others will be in the dock
 
 The first thing you'll need to do is get a Lucky project scaffolded using Lucky CLI. Here are links to the docs for how to do that on [macOS](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-macos) and [Linux](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-linux) (Windows support has not landed for Crystal yet).
 
-With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local crystal might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal won't matter. 
+With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local crystal might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal shouldn't really matter. 
 
-`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT.
+`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
 
-After that, the project is created and you're told to do things like `check database settings in config/database.cr`. Besides the initial `cd`, we'll **not** be following those steps because we are more interested in this running in Docker than on our own machine. (Notice we'll not even be installing Crystal locally.)
+    lucky custom.init foo_bar --api
+
+After that, the project is created and you're told to do things like `check database settings in config/database.cr`. We'll **not** be following those steps because we are more interested in this running in Docker than on our own machine. (Notice we'll not even be installing Crystal locally.)
 
 ## LHD
 
@@ -32,55 +34,65 @@ Getting all the configuration with Docker can be challenging, so I'm providing t
 
 I'm going to refer to this repo as LHD (lucky-hasura-docker) throughout the tutorial, so heads up!
 
-I will be tagging LHD with "releases". I'll tag a commit of this repo whenever there has been an update to Lucky or Hasura and someone (probably me) has actually run through them and verified that they work. So you can see immediately when and with what versions this has last been tested.
+I plan to use tags and 'releases' and a 'tested on/by' table to communicate clearly how up-to-date this repo is. It'll probably take a couple of releases to get right, so hang with me if this is the first one or two :). When it's done, you should be able to clearly see 'this copy of the README has been tested on macOS with lucky 0.21.0 crystal 0.34.0 Hasura 1.1.1 Docker Engine 19.03.8' and that copy of the repo will be referencing those versions in its compose files.
 
 LHD has directories and files that you should add to your Lucky project, so go ahead and clone that down into a separate local directory for a start. We'll be modifying it and then moving files from LHD to the lucky project.
 
 ### LHD Step 1: Search and Replace
 
-The repo has a few "variables" that you should use search and replace to customize to your project. They are:
+This repo has a few "variables" that you should use search and replace to customize to your project. They are:
 
 * `GITLAB_USER`
 * `GITLAB_REPO_NAME`
 * `PROJECT_NAME`
 * `SWARM_NAME`
 
-The first two are used in commands like `git clone` to pull down your repo (i.e. `gitlab.com/<GITLAB_USER>/<GITLAB_REPO_NAME>`). 
+The first two are used in git commands (like `git clone`) to pull/push your project around (i.e. `gitlab.com/<GITLAB_USER>/<GITLAB_REPO_NAME>`). 
 
 (Oh yeah, did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. In the future if someone wants to pitch in instructions for doing this with a mixture of tools (Github and CircleCI for example), I'll be happy to discuss the best ways to make this more accessible to a wider audience.)
 
-`PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project name to be `lhd`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names. (Not to mention that in Crystal land the project `foo_bar` will be in namespace `FooBar` while the project `foo-bar` will be in namespace `Foo::Bar`.)
+`PROJECT_NAME` and `SWARM_NAME` are up to you but for a start you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project names to be `lhd` or if you want them to be separate `lhd` and `lhd_swarm`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names. (Not to mention that in Crystal land, the project `foo_bar` will be in namespace `FooBar` while the project `foo-bar` will be in namespace `Foo::Bar`.)
 
 So go ahead and use sed, or your IDE or whatever you like to replace those throughout your copy of the LHD repo. The following might be handy:
 
 **Linux**
-
-    git grep -l 'GITLAB_USER' | xargs sed -i 's/GITLAB_USER/kcerb/g'
-    git grep -l 'GITLAB_REPO_NAME' | xargs sed -i 's/GITLAB_REPO_NAME/foo_bar/g'
-    git grep -l 'PROJECT_NAME' | xargs sed -i 's/PROJECT_NAME/foo_bar/g'
-    git grep -l 'SWARM_NAME' | xargs sed -i 's/SWARM_NAME/foo_bar/g'
+```
+cd lucky-hasura-docker
+git grep -l 'GITLAB_USER' | xargs sed -i 's/GITLAB_USER/kcerb/g'
+git grep -l 'GITLAB_REPO_NAME' | xargs sed -i 's/GITLAB_REPO_NAME/foo_bar/g'
+git grep -l 'PROJECT_NAME' | xargs sed -i 's/PROJECT_NAME/foo_bar/g'
+git grep -l 'SWARM_NAME' | xargs sed -i 's/SWARM_NAME/foo_bar/g'
+```
 
 **macOS**
+```
+cd lucky-hasura-docker
+git grep -l 'GITLAB_USER' | xargs sed -i '' -e 's/GITLAB_USER/kcerb/g'
+git grep -l 'GITLAB_REPO_NAME' | xargs sed -i '' -e 's/GITLAB_REPO_NAME/foo_bar/g'
+git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
+git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
+```
 
-    git grep -l 'GITLAB_USER' | xargs sed -i '' -e 's/GITLAB_USER/kcerb/g'
-    git grep -l 'GITLAB_REPO_NAME' | xargs sed -i '' -e 's/GITLAB_REPO_NAME/foo_bar/g'
-    git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
-    git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
+**Windows**
+```
+PR welcome
+```
 
-Once that's done, you can move (almost) all of the files over to your lucky app. The following excerpt assumes your project and LHD are setup next to eachother from some repo such as `git/lucky-hasura-docker` and `git/foo_bar`. It removes all of the Lucky scripts in `foo_bar/script` because as of this version, those are not needed in LHD development. It also removes the `Procfile`s and copies almost everything from LHD to `foo_bar`:
+Once that's done, you can move (almost) all of the files over to your lucky app. The following excerpt assumes your project and LHD are setup next to each other such as `git/lucky-hasura-docker` and `git/foo_bar`. It removes all of the Lucky scripts in `foo_bar/script` because those are not needed in LHD development. It also removes the `Procfile`s and copies almost everything from LHD to `foo_bar`. Be sure to replace `foo_bar` with your actual Lucky project's name.
 
 ```
 rm -rf foo_bar/script
 rm foo_bar/Procfile
 rm foo_bar/Procfile.dev
-rsync -avr --exclude='.git' --exclude='/README.md' lucky-hasura-docker/ foo_bar
+rsync -avr --exclude='.git' lucky-hasura-docker/ foo_bar
+mv lucky-hasura-docker/README.template foo_bar/README.md
 # add .docker-sync dir to git ignore
 echo '\n.docker-sync/' >> foo_bar/.gitignore
 ```
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
 
-The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (for me this is line 17). The string that follows is your development mode secret key base and will be used to sign the JWTs you'll be passing to Hasura. It gets randomly generated on project creation so I need you to paste this in your `Docker/docker-compose.dev.yml` so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option which you can implement by reading the docs). I've marked the spot where this string goes with `SECRET_KEY_BASE_HERE`.
+The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development mode secret key base and will be used to sign the JWTs you'll be passing to Hasura. It gets randomly generated on project creation, so I need you to paste this in your `Docker/docker-compose.dev.yml` so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option too, it's detailed in their docs). I've marked the spot where this string goes with `SECRET_KEY_BASE_HERE`.
 
 ### Docker Intro
 
@@ -96,11 +108,11 @@ Before going on, check if you understand this sentence: this is a multi-containe
 
 #### docker-sync
 
-If you're developing on a mac, and new to Docker, it's time to hit you with some bad news: Docker is slow on macOS. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on anything other than Linux and doesn't interfere with those on your team doing Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
+If you're developing on macOS or Windows, and new to Docker, it's time to hit you with some bad news: Docker can be painfully slow. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on anything other than Linux and doesn't interfere with those on your team doing Linux development. It's a great solution for a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it already and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still either need to install this, or remove it from the setup here since it's hardwired in at the moment. Notice that it only syncs the `src` `db` and `spec` directories. Everything else is copied in at image build time and we use `up` to rebuild when those change.
+LHD has a `docker-sync.yml` in it and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still need to install this since it's hardwired in at the moment. I know it's a pity to have a non-Docker dependency in a Docker project but it would seem that's just the state of Docker for now.
 
 #### up
 
@@ -143,22 +155,23 @@ The main ideas to notice here are
 
     So you'll see a lot of that in these scripts.
 
-2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres` loop running under the hood too).
+2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows postgres is ready (it has its own `wait-for-postgres`-like loop running under the hood too).
 
+Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ Setup is finished!` after about a minute. Then the script enters the Lucky container and starts a `tail -f` of the logs. 
 
-Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ All done.` after about a minute (the message `Hasura is unavailable - checking again in 5s` might show a good 10 times on the first go, just be patient). Next you should be able to visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) that means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`. 
+You can now visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version number at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) that means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`. 
 
 Lastly, be sure to take a look at your docker containers, you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll!
 
 ### script/down
 
-This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. You can use `up` for things like that. If you are looking for a _deep_ deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
+This script does the reverse of `up`. It tears down the sync-volumes and removes the containers so that you go back to a clean slate. It's expected that a normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. You can use `up` for things like that. If you are looking for a _deep_ deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
 
 WARNING: I haven't tested this script on a machine where I have multiple Docker projects, so this might have unexpected side effects like stopping or removing containers/volumes unexpectedly. It shouldn't, but it's not properly tested.
 
 ### script/test
 
-This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up` and then drops you into a Bash session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. It'll stay synced with your dev containers via docker-sync. Once you are done, you can just drop the shell session and the test script will clean up afterwards (remove the containers and related volumes). 
+This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up` and then drops you into a Bash session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. It'll stay synced with your dev containers via docker-sync. Once you are done, you can just exit the shell session and the test script will clean up afterwards (remove the containers and related volumes).  If you'd rather spin up, run tests, and tear down automatically (as we do in CI) just pass the `-t` flag.
 
 It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite. 
 
@@ -182,7 +195,7 @@ Now let's seed the database with two users. An admin user and a regular user. Ju
 end
 ```
 
-And then you can run `up lucky db.create_required_seeds` and they'll be added to your database. You'll be able to see that for yourself if you go to `localhost:9695` (your Hasura Console) and you can run a GraphQL query (first track the table with Hasura ... and read their docs if you're new).
+And then you can run `up lucky db.create_required_seeds` and they'll be added to your database. You'll be able to see that for yourself pretty quickly if you go to `http://localhost:9695/` (your Hasura Console). From their you can run a GraphQL query for users (if you are tracking the users table) or just view the table directly. If you're new to Hasura, take a second to play around here.
 
 Next, we'll need to get Lucky to produce the kind of JWT that Hasura can understand. Go into `src/models/user_token.cr` and replace the `payload` with
 
@@ -202,7 +215,7 @@ payload = {"user_id" => user.id,
 }
 ```
 
-Please don't use this in production, just a demo :)
+Please don't use this in production for determining roles, this is just a demo :)
 
 Note: If you watch the Docker logs in your `foo_bar_lucky` container, you should notice that as soon as you save changes to this file, the app recompiles. You don't need to do anything else to build or serve the app, just save changes, and wait a second for it to recompile.
 
@@ -225,7 +238,7 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 }
 ```
 
-And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'm using Insomnia for this, in that application I use the response from my sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste graphql in. Pretty spiffy. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
+And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste graphql in. Pretty spiffy. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
 
 ```
 query MyQuery {
@@ -306,7 +319,7 @@ tables:
 
 ### Test Hasura
 
-Now let's add the above to our Lucky test suite. Here's an example file that gets the job done. I'm not saying this is an ideal way to test, I would actually prefer to abstract this out a little so that I could have a graphql request helper for example, but for the purposes of demonstration it's easier to keep it in a single file. Go ahead and add this to `spec/requests/graphql/users/query_spec.r` if you want to copy the pattern Lucky ships with and then run `crystal spec` in your test container.
+Now let's add the above to our Lucky test suite. Here's an example file that gets the job done. I'm not saying this is an ideal way to test, I would actually prefer to abstract this out a little so that I could have a graphql request helper and a config file for example, but for the purposes of demonstration it's easier to keep it in a single file. Go ahead and add this to `spec/requests/graphql/users/query_spec.r` if you want to copy the pattern Lucky ships with and then run `crystal spec` in your test container.
 
 ```crystal
 require "../../../spec_helper"
@@ -347,7 +360,7 @@ private def graphql_request(user) : Array(JSON::Any)
 end
 ```
 
-I do recommend understanding what's going on in there since making sure you didn't break your GraphQL endpoint recently is a good idea.
+Though I don't recommend following exactly the above as a kind of 'best practice', I do recommend understanding what's going on in there implementing something like it since making sure you didn't break your GraphQL endpoint recently is a good idea.
 
 ## From Development to Production
 
