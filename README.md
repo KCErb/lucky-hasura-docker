@@ -158,9 +158,11 @@ WARNING: I haven't tested this script on a machine where I have multiple Docker 
 
 ### script/test
 
-This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up`. If all goes well, you should be able to just run this script, see the tests pass, and it'll clean up after itself. It is important that you use this script (or something similar to it) to run tests since since we are using a hard-coded `DATABASE_URL` for Lucky. Your tests will run on whatever database that URL is set to. Since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite. 
+This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up` and then drops you into a Bash session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. It'll stay synced with your dev containers via docker-sync. Once you are done, you can just drop the shell session and the test script will clean up afterwards (remove the containers and related volumes). 
 
-It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since this script sets up the database first to let Hasura talk to it and then runs the Lucky spec suite.
+It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite. 
+
+It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since `script/test` covers this base.
 
 ### Other Scripts
 
@@ -223,7 +225,7 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 }
 ```
 
-And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'm using Insomnia for this, in that application I can just paste my GraphQL query in one box, and my 'Bearer' token in the other and it works. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql`
+And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'm using Insomnia for this, in that application I use the response from my sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste graphql in. Pretty spiffy. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
 
 ```
 query MyQuery {
@@ -304,7 +306,48 @@ tables:
 
 ### Test Hasura
 
-Now let's add the above to our Lucky test suite.
+Now let's add the above to our Lucky test suite. Here's an example file that gets the job done. I'm not saying this is an ideal way to test, I would actually prefer to abstract this out a little so that I could have a graphql request helper for example, but for the purposes of demonstration it's easier to keep it in a single file. Go ahead and add this to `spec/requests/graphql/users/query_spec.r` if you want to copy the pattern Lucky ships with and then run `crystal spec` in your test container.
+
+```crystal
+require "../../../spec_helper"
+require "http/client"
+require "json"
+
+describe "GraphQL::Users::Query" do
+  it "admin can see all users" do
+    admin, user = make_test_users
+    users = graphql_request(admin)
+    users.size.should eq 2
+  end
+
+  it "user can see only self" do
+    admin, user = make_test_users
+    users = graphql_request(user)
+    users.size.should eq 1
+    users.first["email"].should eq "user@example.com"
+  end
+end
+
+private def make_test_users
+  admin = UserBox.create &.email("admin@example.com")
+  user = UserBox.create &.email("user@example.com")
+  {admin, user}
+end
+
+# returns [{"email" => "buzz@foo_bar.business"}]
+private def graphql_request(user) : Array(JSON::Any)
+  client = HTTP::Client.new("foo_bar_hasura_test", 8080)
+  client.before_request do |request|
+    request.headers["Authorization"] = "Bearer #{UserToken.generate(user)}"
+  end
+  query = %({"query": "{ users { email } }"})
+  response = client.post("/v1/graphql", headers: HTTP::Headers{"Content-Type" => "application/json"}, body: query)
+  json = JSON.parse response.body
+  json["data"]["users"].as_a
+end
+```
+
+I do recommend understanding what's going on in there since making sure you didn't break your GraphQL endpoint recently is a good idea.
 
 ## From Development to Production
 

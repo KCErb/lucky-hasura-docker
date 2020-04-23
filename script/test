@@ -1,25 +1,25 @@
 #!/bin/bash
-# Note, we do not exit on failure since we want to run docker rm at the end.
+
 source "${BASH_SOURCE%/*}/functions/commons"
 
 check_for_up
 
-run_in_lucky() {
+start_lucky() {
   # TODO: fix `up run` so that we can instead run
-  # up run -e DATABASE_URL=postgres://postgres:@postgres:5432/foo_bar_test --name foo_bar_lucky_test -p 5001:5000 lucky $@
-  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run --rm -e DATABASE_URL=postgres://postgres:@postgres:5432/foo_bar_test --name foo_bar_lucky_test -p 5001:5000 lucky $@
+  # up run -e DATABASE_URL=postgres etc.
+  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky
+  docker exec -it PROJECT_NAME_lucky_test /data/script/docker/update-db
 }
 
 start_hasura() {
   # TODO: fix `up run` so that we can instead run:
-  # up run -d --name foo_bar_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/foo_bar_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
-  # and get a rebuild check.
-  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name foo_bar_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/foo_bar_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
+  # up run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres etc
+  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
 }
 
 printf "\n▸ Initializing test environment\n"
 docker-sync start | indent
-run_in_lucky /data/script/docker/update-db
+start_lucky
 
 printf "\n▸ Starting Hasura test container.\n"
 start_hasura
@@ -28,10 +28,9 @@ until curl -s http://localhost:8081/healthz > /dev/null; do
   sleep 5
 done
 printf "\n✔ Hasura is ready.\n"
+printf "\nStarting bash session in PROJECT_NAME_lucky_test ...\n"
+docker exec -it PROJECT_NAME_lucky_test /bin/bash
 
-printf "\n▸ Running tests.\n"
-run_in_lucky crystal spec
-
-printf "\n▸ Removing Hasura test container.\n"
-docker rm -fv foo_bar_hasura_test
-printf "\n✔ All done.\n"
+printf "\n▸ Removing test containers.\n"
+docker rm -fv PROJECT_NAME_hasura_test
+docker rm -fv PROJECT_NAME_lucky_test
