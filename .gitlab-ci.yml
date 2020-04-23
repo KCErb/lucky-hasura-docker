@@ -11,10 +11,11 @@ stages:
 
 variables:
   REGISTRY_IMAGE: registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky
+  POSTGRES_HOST_AUTH_METHOD: trust
 
-# Use this if your GitLab runner does not use socket binding
 services:
-  - docker:dind
+  - docker:dind # docker-in-docker, makes `docker` and `docker-compose` commands available
+  - postgres
 
 before_script:
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
@@ -22,8 +23,7 @@ before_script:
 Test:
   stage: test
   script:
-    - docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
-    - docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run --rm lucky crystal spec
+    - script/test -t
 
 Build:
   stage: build
@@ -36,7 +36,7 @@ Build:
 # The goal here is to tag builds by branch so that in the build step we can use previous work
 Push tag:
   variables:
-    # Again, we do not need the source code here. Just playing with Docker.
+    # We do not need the source code here. Just playing with Docker.
     GIT_STRATEGY: none
   stage: push
   script:

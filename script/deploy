@@ -27,15 +27,22 @@ if [ "$LUCKY_ENV" != "production" ]; then
   export LUCKY_ENV=production
 fi
 
-# type is set to arg if available, defaults to add
+# Support -s flag for making a 'subtractive' deployment
+TYPE='add'
+while getopts 's' flag; do
+  case "${flag}" in
+    s) TYPE='subtract' ;;
+  esac
+done
+
 ARG=$@
 TYPE="${ARG:-add}"
 export LUCKY_TAG=`git rev-parse --short=8 HEAD`
 
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to update the db first.
-# subtractive take away from the db, so the old code will break so we first deploy the new code
-# which ignores the stuff we're about to take away and then takes it away.
+# subtractive migrations take away from the db, which breaks the old code
+# thus we deploy code first.
 if [ "$TYPE" = "add" ]; then
   migrate
   update_code
