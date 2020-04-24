@@ -16,4 +16,4 @@ else
 fi
 
 
-docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml -f Docker/docker-compose.traefik.yml build
+docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml build

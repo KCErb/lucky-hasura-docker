@@ -4,29 +4,30 @@
 image: docker/compose:1.25.5
 
 stages:
-  - test
   - build
   - push
+  - test
   - deploy
 
 variables:
   REGISTRY_IMAGE: registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky
-  POSTGRES_HOST_AUTH_METHOD: trust
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: secret
+  POSTGRES_DB: PROJECT_NAME_test
+  SECRET_KEY_BASE: secret
+  HASURA_GRAPHQL_ADMIN_SECRET: secret
 
 services:
   - docker:dind # docker-in-docker, makes `docker` and `docker-compose` commands available
-  - postgres
 
 before_script:
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
 
-Test:
-  stage: test
-  script:
-    - script/test -t
-
 Build:
   stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /no-build/
   script:
     # fetches the latest image on the branch, does not fail if not found
     - docker pull $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME || true
@@ -35,19 +36,30 @@ Build:
 
 # The goal here is to tag builds by branch so that in the build step we can use previous work
 Push tag:
+  stage: push
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /no-build/
   variables:
     # We do not need the source code here. Just playing with Docker.
     GIT_STRATEGY: none
-  stage: push
   script:
     - docker pull $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
     - docker tag $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
     - docker push $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
 
+Test:
+  stage: test
+  script:
+    - script/test -t
+
 Deploy staging:
   stage: deploy
   only:
     - staging
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /no-deploy/
   script:
     - apk add --update openssh
     - eval $(ssh-agent -s)
@@ -61,6 +73,9 @@ Deploy production:
   stage: deploy
   only:
     - master
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /no-deploy/
   script:
     - apk add --update openssh
     - eval $(ssh-agent -s)

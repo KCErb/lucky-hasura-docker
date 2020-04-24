@@ -1,53 +1,52 @@
-#!/bin/bash
-
-source "${BASH_SOURCE%/*}/functions/commons"
-
-check_for_up
+#!/bin/sh
+# This script creates Lucky and Hasura containers for testing. If we are on the CI Server
+# they are created against the production docker-compose file. Otherwise against dev.
+# This means almost each line of this file is different depending on context, but it's
+# better to keep them in the same file anyway since they are closely related.
 
 start_lucky() {
-  # TODO: fix `up run` so that we can instead run
-  # up run -e DATABASE_URL=postgres etc.
-  # - docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net migrations --entrypoint /data/script/docker/update-db registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG
-  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky
-  sleep 5 # filing bug on this right now
+  if [ "$CI_SERVER" == "yes" ]; then
+    export LUCKY_TAG=$CI_COMMIT_SHORT_SHA
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml run -d --name PROJECT_NAME_lucky_test lucky bash
+  else
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky bash
+  fi
   docker exec -it PROJECT_NAME_lucky_test /data/script/docker/update-db
 }
 
 start_hasura() {
-  # TODO: fix `up run` so that we can instead run:
-  # up run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres etc
-  docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
+  if [ "$CI_SERVER" == "yes" ]; then
+    HASURA_PORT=8080
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml run -d --name PROJECT_NAME_hasura_test -p $HASURA_PORT:8080 hasura
+  else
+    HASURA_PORT=8081
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p $HASURA_PORT:8080 -p 9696:9695 -p 9694:9693 hasura
+  fi
+
+  until wget -O/dev/null -q http://localhost:$HASURA_PORT/healthz > /dev/null; do
+    printf "    Hasura not ready - checking again in 5s\n"
+    sleep 5
+  done
+  printf "\n✔ Hasura is ready.\n"
 }
 
-# Support -t for test mode.
-test_and_exit=false
-while getopts 't' flag; do
-  case "${flag}" in
-    t) test_and_exit=true ;;
-  esac
-done
-
 printf "\n▸ Initializing test environment.\n"
-docker-sync start | indent
+if [ "$CI_SERVER" != "yes" ]; then
+  docker-sync start
+fi
 start_lucky
 
 printf "\n▸ Starting Hasura test container.\n"
 start_hasura
-until curl -s http://localhost:8081/healthz > /dev/null; do
-  printf "Hasura not ready - checking again in 5s\n" | indent
-  sleep 5
-done
-printf "\n✔ Hasura is ready.\n"
 
-if [ "$test_and_exit" = true ] ; then
+if [ "$CI_SERVER" == "yes" ]; then
   printf "\n▸ Running tests\n"
-  docker exec -it PROJECT_NAME_lucky_test sh -c "crystal spec"
+  docker exec -it PROJECT_NAME_lucky_test sh -c "crystal spec --order random"
 else
   printf "\nStarting bash session in PROJECT_NAME_lucky_test ...\n"
   docker exec -it PROJECT_NAME_lucky_test /bin/bash
 fi
 
-
 printf "\n▸ Removing test containers.\n"
-docker rm -fv PROJECT_NAME_hasura_test
 docker rm -fv PROJECT_NAME_lucky_test
+docker rm -fv PROJECT_NAME_hasura_test

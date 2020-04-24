@@ -3,6 +3,15 @@
 set -e
 set -o pipefail
 
+# Seed DB?
+SEED_DB="false"
+while getopts 's' flag; do
+  case "${flag}" in
+    s) SEED_DB="true" ;;
+    *) ;;
+  esac
+done
+
 source "${BASH_SOURCE%/*}/../functions/commons"
 
 printf "\n▸ Migrating once postgres is up\n"
@@ -24,8 +33,7 @@ else
   lucky db.migrate | indent
 fi
 
-# No need to seed in test mode since tests truncate the db
-if [ "$LUCKY_ENV" != "test" ]; then
+if [ "$SEED_DB" == "true" ]; then
   printf "\n▸ Seeding database with required seeds\n"
   if [ "$LUCKY_ENV" == "production" ]; then
     /data/tasks/run_task db.create_required_seeds | indent

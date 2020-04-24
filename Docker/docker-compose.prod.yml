@@ -16,12 +16,12 @@ services:
     - migrations
   hasura:
     environment:
-      HASURA_GRAPHQL_ADMIN_SECRET:
       POSTGRES_USER:
       POSTGRES_PASSWORD:
       POSTGRES_DB:
+      HASURA_GRAPHQL_ADMIN_SECRET:
       HASURA_GRAPHQL_DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
-      HASURA_GRAPHQL_JWT_SECRET:
+      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "$SECRET_KEY_BASE"}'
     healthcheck:
       test: ["CMD", "/script/docker/hasura_healthcheck"]
     deploy:
@@ -44,7 +44,7 @@ services:
       SECRET_KEY_BASE:
       SEND_GRID_KEY:
       APP_DOMAIN:
-      LUCKY_ENV:
+      LUCKY_ENV: production
       PORT: 5000
       DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
     healthcheck:

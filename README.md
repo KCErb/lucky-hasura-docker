@@ -22,7 +22,7 @@ With that tool in place, you can now start a project with `lucky init` as per th
 
 `lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
 
-    lucky custom.init foo_bar --api
+    lucky init.custom foo_bar --api
 
 After that, the project is created and you're told to do things like `check database settings in config/database.cr`. We'll **not** be following those steps because we are more interested in this running in Docker than on our own machine. (Notice we'll not even be installing Crystal locally.)
 
@@ -87,7 +87,7 @@ rm foo_bar/Procfile.dev
 rsync -avr --exclude='.git' lucky-hasura-docker/ foo_bar
 mv lucky-hasura-docker/README.template foo_bar/README.md
 # add .docker-sync dir to git ignore
-echo '\n.docker-sync/' >> foo_bar/.gitignore
+echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
 ```
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
@@ -380,6 +380,18 @@ OK, now for the juicy stuff. The above is nice and all, but we can go way furthe
 
 What's more is Gitlab can do the heavy lifting for us with respect to building and tagging images. If there's an issue with a deployment on staging, we can use the rollback script to go back to a previous image and database state since the images are tagged by git commit. I'm even experimenting with two kinds of migrations: "additive" and "subtractive" to go for a perfect zero-downtime history. If you're interested in these ideas read on, the main motivation for building all of this was to achieve devops Nirvana and if the below isn't it, then I hope it's close enough that the community can help me get it the rest of the way there. We'll have to sacrifice a bit though, some of the details of a real production deployment get a little hairy but it's worth it in the end.
 
+## First commit and push
+
+To start, we'll commit our code and use a special flag in the commit message: `[no-deploy]`. If you take a look at `.gitlab-ci.yml` you'll see that we have 4 stages `test` `build` `push` and `deploy`. This flag is configured to skip the deploy stage. Hence this first commit will test our code, then build a production image and then tag and push that image to the Gitlab registry for use in the deployment stage.
+
+Note: any `scripts` you want to run here like `script/test` or `script/build` must either be a `sh`ell script (not bash) or you need to install bash on the docker image. If you fail to do this you'll get a cryptic message `/bin/sh: eval: line 98: script/test: not found` which seems like it's saying 'file not found' but what it's really saying is '`sh` file not found' and it is unaware that you have a `bash` script in that exact location.
+
+The most unique thing here is perhaps the `push` step where we tag an image both with a commit reference via the gitlab-provided variable `$CI_COMMIT_SHORT_SHA` as well as the branch name via `$CI_COMMIT_REF_NAME`. The result is that the most recent / current image is tagged by branch name and by commit reference. On the next build, that can be used as a cache reference to save build time. This idea and many other things are borrowed / adapted from [blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices](https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/).
+
+Many of the variables used here are provided by gitlab such as `$CI_COMMIT_REF_NAME` but not all. When we start talking about the `deploy` stage later we'll need to add some of our own but for now we'll content ourselves with simply being able to test and build our code.
+
+If your first push was successful, your Gitlab registry now has a production image built and tagged ready to be pulled onto a production server. So let's turn our attention to getting those going.
+
 ## Staging and Production Servers
 
 The first thing we need to do is get some servers up somewhere. It's not terribly important how you choose to do this, so please feel free to skip to the next major heading if you've got your own plan. Otherwise, I'll go ahead and describe how I did this with [DigitalOcean](https://www.digitalocean.com) and [Cloudflare](https://www.cloudflare.com).
@@ -422,36 +434,43 @@ Next we can do our DNS and security certificates through Cloudflare (for free). 
 
 ## Production Scripts
 
-Next we'll take a look at the scripts that are provided here for automatic deployment. The first push is special, some hand holding needs to be done. We need to have a fully running setup before these scripts can really do their magic. So instead of just running these scripts blindly, we're going walk through them and do much of what they do by hand, and then see how those manual steps have been brought together into convenient executables.
+Next we'll take a look at the scripts that are provided here for automatic deployment. The first push is special, some hand holding needs to be done. We need to have a fully running setup before these scripts can really do their magic. So instead of just running these scripts blindly, we're going to walk through them and do much of what they do by hand, and then see how those manual steps have been brought together into convenient executables.
 
 ### deploy
 
 The `deploy` script is a good place to start here. The first thing you'll notice is that this thing relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Let's go ahead and add the real environment variables to our production server now. The following are the first few environment variables from an example `~/.profile` (we'll do 6 more when we set up the monitoring tools).
 
 ```
-export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
 export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
-export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
+export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
 export POSTGRES_DB=foo_bar_production
-export LUCKY_ENV=production
+export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
 export APP_DOMAIN=foobar.business
 export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
 export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
-export HASURA_GRAPHQL_JWT_SECRET='{"type": "HS256","key": "'"$SECRET_KEY_BASE"'"}'
 ```
 
-You can fill in the first three entries above with randomly generated strings (not too long, some of these services have limits 63 chars or less should be safe, also, careful with special characters, you might want to check PostGres and Hasura docs if you'd like to use special chars).  The next three are more or less up to you. The postgres db name will be something you actually use so make it easy to type/read. The `LUCKY_ENV` should be `production` for both production and staging (From Wikipedia: "A stage or staging environment is an environment for testing that exactly resembles a production environment."). `APP_DOMAIN` is the domain of the app that you registered in the Cloudflare step. `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll have to go sign up with them and generate an API key. And finally, the `SECRET_KEY_BASE` comes from `lucky gen.secret_key`. You should probably run that command in the Docker container, otherwise you'll have to `shards install` locally which isn't so bad but kinda defeats the point.
+You can fill in the first three entries above with randomly generated strings (not too long, some of these services have limits 63 chars or less should be safe, also, careful with special characters, you might want to check PostGres and Hasura docs if you'd like to use special chars).  The next three are more or less up to you. The postgres db name will be something you actually use so make it easy to type/read. `APP_DOMAIN` is the domain of the app that you registered in the Cloudflare step, it used by Traefik and Lucky. `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: https://luckyframework.org/guides/deploying/heroku#quickstart. You'll have to go sign up with them and generate an API key. And finally, the `SECRET_KEY_BASE` comes from `lucky gen.secret_key`. You should probably run that command in the Docker container, otherwise you'll have to `shards install` locally which isn't so bad but kinda defeats the point.
 
 Please note in the above that the special characters given to me by `sendgrid` and `lucky gen.secret_key` didn't need escaping in my shell (bash). In particular the last entry has special quoting to get that `SECRET_KEY_BASE` interpolated into JSON. I can't guarantee that in your shell the same will be true or what is the best strategy for escaping special characters. Depends on the shell and the characters! After doing this step, you might want to just run through the vars in the shell and make sure they look right.
 
-The next thing `deploy` does is update the code and db and hasura metadata. These three steps only make sense if we have already built a production image and have the code hosted up on Gitlab. We haven't done either of those things so let's address that now.
+`script/deploy` by default runs in 'additive deploy' mode but we can pass a `-s` flag to use 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
-## build
+NOTE: The first deployment has to "update" code before migrating because that function gets the stack going (i.e. starts services). So on the very first deploy (which is done manually) you must use `script/deploy -s`. Subsequent deployments should be handled automatically and ... ???a commit message can put them into subtractive mode???
 
-The first thing we'll do is work a little on the Lucky repo to put in our first bits of custom application logic. We'll just need two things to get started:
+### script/rollback
 
-1. A version route.
-2. JWT tokens that include Hasura claims.
+The rollback script requires one argument: the version you want to rollback to. Since our images are tagged by commit SHA that means providing the first 8 characters of the commit SHA you want to go back to. If you've checked out that commit in the terminal, this is just the output of `git rev-parse --short=8 HEAD`.
+
+You can also provide a second argument which works just like `deploy`. If it was an additive deploy that you're rolling back, then the argument should either be `add` or not provided.
+
+NOTE: this one is a work in progress. There is a `rollback` function which spins up a container and runs `db.rollback` calls, but at the moment it just rolls back one migration. If your deploy had two for example, then you'd want to pass that as an argument. This can probably be automated now that I have a commit SHA, but I haven't implemented this yet so some manual rolling back will be needed in that case.
+
+### Health Checks
+
+In deployment we'll be using docker swarm so you may also notice the `script/docker/*healthcheck` files. These are little scripts that run every so often and make sure the services are healthy. You can read more about them here: [docs.docker.com/compose/compose-file/#healthcheck](https://docs.docker.com/compose/compose-file/#healthcheck). 
+
+LHD includes a health check for Lucky that makes sure it has a good DB connection. It relies on us creating a `version` route so we'll do that now.
 
 The version route is used for our Docker healthcheck. We'll get to the Docker Swarm stuff a little later, but for now, let's give it a route it can ping to know our application is healthy (responding to requests and talking to the db). You can choose whatever you like for this, I'm choosing to store a 'version' string in the DB and fetch it on request.
 
@@ -518,32 +537,6 @@ version_is_same = last_version && last_version == current_version
 SaveVersion.create!(value: current_version) unless version_is_same
 ```
 
-Let's run ... (what? use up to run update_db in the container??? just plain ssh in and run migration / required seeds??)
-
-###>>> With the above all done, I think we are ready to commit and push with a special message ...
-
-// Just need some kinda commit comment that gets a CIDCD env variable we can explain the add/sub/init thing in that context yeah?
-
-The next thing to notice here is that we can pass an argument. If there is no argument or if its value is `add` we run in 'additive deploy' mode and if it is anything else we run in 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
-
-NOTE: The first deployment has to "update" code before migrating because that function gets the stack going (i.e. starts services). So on the very first deploy you might call `script/deploy first` for example and on subsequent deploys where the db/project is growing in complexity you'd just call `script/deploy`.
-
-### build
-
-This script is mostly going to be run by our `CD` setup described later on. It's job is simply to run a `docker-compose build` with the right settings to get some images built based on current code. We'll come back to this in a minute, but it's important to note here that production images are tagged with the first 8 characters of the current commit SHA.
-
-### rollback
-
-The rollback script requires one argument: the version you want to rollback to. Since our images are tagged by commit SHA that means providing the first 8 characters of the commit SHA you want to go back to. If you've checked out that commit in the terminal, this is just the output of `git rev-parse --short=8 HEAD`.
-
-You can also provide a second argument which works just like `deploy`. If it was an additive deploy that you're rolling back, then the argument should either be `add` or not provided.
-
-NOTE: this one is a work in progress. There is a `rollback` function which spins up a container and runs `db.rollback` calls, but at the moment it just rolls back one migration. If your deploy had two for example, then you'd want to pass that as an argument. This can probably be automated now that I have a commit SHA, but I haven't implemented this yet so some manual rolling back will be needed in that case.
-
-### Health Checks
-
-In deployment we'll be using docker swarm so you may also notice the `script/docker/*healthcheck` files. These are little scripts that run every so often and make sure the services are healthy. You can read more about them here: [docs.docker.com/compose/compose-file/#healthcheck](https://docs.docker.com/compose/compose-file/#healthcheck).
-
 ## Docker Swarm
 
 On the server, you'll need to start a swarm first (see [the Docker guide](https://docs.docker.com/get-started/) if you're not sure about this), but after that you can just run `script/deploy init` as described above and everything should kick off on its own.
@@ -600,14 +593,14 @@ docker stack deploy -c docker-compose.yml prometheus_swarm
 
 But do be careful, this thing needs a bit of memory and if you're using the DigitalOcean $5 server you might not have enough room for Lucky, Hasura, and this monitoring stack all in the same tiny box.
 
-I feel like I should write more since there's a bunch going on under the hood here, but I'll let those interested read the `docker-compose` file, it has all the details. In production I have another CNAME record for `grafana.example.com` and I can do my monitoring from there.
+I feel like I should write more since there's a bunch going on under the hood here, but I'll let those interested read the `docker-compose` file, it 
+has all the details. In production I have another CNAME record for `grafana.example.com` and I can do my monitoring from there.
 
-## CD
+# Automatic Deployments
 
-The `.gitlab-ci.yml` file provided here tests the code, then builds an image, then tags and pushes it to the registry so that it can be reused on subsequent builds, and then finally deploys it to the server. Give those steps a quick read to understand what that's all about. The most unique thing perhaps is the `push` step where we tag an image both with a commit reference via the gitlab-provided variable `$CI_COMMIT_SHORT_SHA` as well as the branch name via `$CI_COMMIT_REF_NAME`. The result is that the most recent / current image is tagged by branch name and by commit reference. On the next build, that can be used as a cache reference to save build time. This idea and many other things are borrowed / adapted from [blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices](https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/).
+The final step is to kick off another commit and this time allow the deployment stage to run.
 
-Many of the variables used here are provided by gitlab such as `$CI_COMMIT_REF_NAME` but not all. Let's head on over to "Settings > CI/CD" under the "Variables" heading. There you'll need to create four variables, 2 each for staging and production. `GITLAB_PRODUCTION_KEY` and `GITLAB_STAGING_KEY` contain the SSH private keys of ssh keypairs where the public key is already on the production or staging servers. This gives us ssh access for the deploy step. The IP addresses are also made into variables as `PRODUCTION_SERVER_IP` and `STAGING_SERVER_IP`.
-
+Let's head on over to "Settings > CI/CD" under the "Variables" heading. There you'll need to create four variables, 2 each for staging and production. `GITLAB_PRODUCTION_KEY` and `GITLAB_STAGING_KEY` contain the SSH private keys of ssh keypairs where the public key is already on the production or staging servers. This gives us ssh access for the deploy step. The IP addresses are also made into variables as `PRODUCTION_SERVER_IP` and `STAGING_SERVER_IP`.
 With those things in place, you'll be able to deploy to the server automatically whenever a commit lands in `master` or `staging`. That is of course assuming you have server's setup properly. I'm assuming here that you've already run `script/deploy init` on the server manually which will only work if everything is set up properly.
 
 # Conclusion
