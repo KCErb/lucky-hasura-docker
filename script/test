@@ -3,29 +3,52 @@
 # they are created against the production docker-compose file. Otherwise against dev.
 # This means almost each line of this file is different depending on context, but it's
 # better to keep them in the same file anyway since they are closely related.
+set -e
+
+# docker-compose.prod.yml needs a LUCKY_TAG to know which image to pull. We just pull the last one tagged for this branch.
+if [ "$CI_SERVER" = "yes" ]; then
+  export LUCKY_TAG=$CI_COMMIT_REF_NAME
+fi
+
+# If an argument is passed, it is taken as a tag on gitlab that you'd like to use to test a production image.
+if [ $# != 0 ]; then
+  printf "\n▸ Testing production image\n"
+  export POSTGRES_USER=postgres
+  export POSTGRES_PASSWORD="" # Assumes local psql is already running in trust mode.
+  export POSTGRES_DB=PROJECT_NAME_test
+  export SECRET_KEY_BASE="aIVkYhf56Ek5t2gTz4ClSeMTa+Vqv/CZizRgVgp5Lsw="
+  export HASURA_GRAPHQL_ADMIN_SECRET=secret
+  export LUCKY_TAG=$1
+  export CI_SERVER=yes
+  export SEND_GRID_KEY=unused
+  export APP_DOMAIN=unused
+  docker login registry.gitlab.com
+fi
 
 start_lucky() {
-  if [ "$CI_SERVER" == "yes" ]; then
-    export LUCKY_TAG=$CI_COMMIT_SHORT_SHA
+  if [ "$CI_SERVER" = "yes" ]; then
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml pull lucky
     docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml run -d --name PROJECT_NAME_lucky_test lucky bash
   else
     docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky bash
   fi
-  docker exec -it PROJECT_NAME_lucky_test /data/script/docker/update-db
+  docker exec -t PROJECT_NAME_lucky_test /data/script/docker/update-db
 }
 
 start_hasura() {
-  if [ "$CI_SERVER" == "yes" ]; then
-    HASURA_PORT=8080
-    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml run -d --name PROJECT_NAME_hasura_test -p $HASURA_PORT:8080 hasura
+  if [ "$CI_SERVER" = "yes" ]; then
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.prod.yml run -d --name PROJECT_NAME_hasura_test hasura
   else
-    HASURA_PORT=8081
-    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p $HASURA_PORT:8080 -p 9696:9695 -p 9694:9693 hasura
+    docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
   fi
 
-  until wget -O/dev/null -q http://localhost:$HASURA_PORT/healthz > /dev/null; do
+  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' PROJECT_NAME_hasura_test
+  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' PROJECT_NAME_lucky_test
+  docker logs PROJECT_NAME_hasura_test
+  until docker exec -t PROJECT_NAME_lucky_test curl -s PROJECT_NAME_hasura_test:8080/healthz > /dev/null; do
     printf "    Hasura not ready - checking again in 5s\n"
     sleep 5
+    docker logs --since 5s PROJECT_NAME_hasura_test
   done
   printf "\n✔ Hasura is ready.\n"
 }
@@ -39,9 +62,9 @@ start_lucky
 printf "\n▸ Starting Hasura test container.\n"
 start_hasura
 
-if [ "$CI_SERVER" == "yes" ]; then
+if [ "$CI_SERVER" = "yes" ]; then
   printf "\n▸ Running tests\n"
-  docker exec -it PROJECT_NAME_lucky_test sh -c "crystal spec --order random"
+  docker exec -t PROJECT_NAME_lucky_test sh -c "crystal spec --order random"
 else
   printf "\nStarting bash session in PROJECT_NAME_lucky_test ...\n"
   docker exec -it PROJECT_NAME_lucky_test /bin/bash

@@ -19,7 +19,7 @@ printf "\n▸ Migrating once postgres is up\n"
 
 DB_NAME="${LUCKY_ENV:-development}"
 
-printf "\n▸ Creating $DB_NAME database.\n"
+printf "\n▸ Creating %s database.\n" "$DB_NAME"
 if [ "$LUCKY_ENV" == "production" ]; then
   /data/tasks/run_task db.create | indent
 else

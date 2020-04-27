@@ -15,7 +15,7 @@ services:
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
       HASURA_GRAPHQL_ADMIN_SECRET: secret
-      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "SECRET_KEY_BASE_HERE"}'
+      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "DEV_SECRET_KEY_BASE"}'
     container_name: PROJECT_NAME_hasura
     tty: true
     restart: always

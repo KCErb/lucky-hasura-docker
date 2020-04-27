@@ -92,7 +92,12 @@ echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
 
-The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development mode secret key base and will be used to sign the JWTs you'll be passing to Hasura. It gets randomly generated on project creation, so I need you to paste this in your `Docker/docker-compose.dev.yml` so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option too, it's detailed in their docs). I've marked the spot where this string goes with `SECRET_KEY_BASE_HERE`.
+The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation, so I need you to paste this several places (until this project has automated tools for this kind of thing) 
+* `Docker/docker-compose.dev.yml`
+* `script/test`
+* `.gitlab-ci.yml`
+
+so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option too, it's detailed in their docs). I've marked the spot where this string goes with `DEV_SECRET_KEY_BASE`.
 
 ### Docker Intro
 
@@ -171,7 +176,7 @@ WARNING: I haven't tested this script on a machine where I have multiple Docker 
 
 ### script/test
 
-This script spins up test copies of hasura and lucky in different containers and on different ports than `script/up` and then drops you into a Bash session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. It'll stay synced with your dev containers via docker-sync. Once you are done, you can just exit the shell session and the test script will clean up afterwards (remove the containers and related volumes).  If you'd rather spin up, run tests, and tear down automatically (as we do in CI) just pass the `-t` flag.
+This script can run in two modes. If you pass an argument, it runs in production mode for testing production images locally. I'll describe that more in the production section below. With no argument it spins up test copies of hasura and lucky in different containers and on different ports than `script/up` and then drops you into a Bash session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. It'll stay synced with your dev containers via docker-sync. Once you are done, you can just exit the shell session and the test script will clean up afterwards (remove the containers and related volumes). If you'd rather spin up, run tests, and tear down automatically (as we do in CI) just pass the `-t` flag.
 
 It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite. 
 
@@ -356,7 +361,15 @@ private def graphql_request(user) : Array(JSON::Any)
   query = %({"query": "{ users { email } }"})
   response = client.post("/v1/graphql", headers: HTTP::Headers{"Content-Type" => "application/json"}, body: query)
   json = JSON.parse response.body
-  json["data"]["users"].as_a
+  data = json["data"]?
+  if data
+    users = data["users"].as_a
+    users.size
+    users.first["email"] == "buzz@foo_bar.business"
+  else
+    raise json.to_pretty_json
+  end
+  users
 end
 ```
 
@@ -384,13 +397,23 @@ What's more is Gitlab can do the heavy lifting for us with respect to building a
 
 To start, we'll commit our code and use a special flag in the commit message: `[no-deploy]`. If you take a look at `.gitlab-ci.yml` you'll see that we have 4 stages `test` `build` `push` and `deploy`. This flag is configured to skip the deploy stage. Hence this first commit will test our code, then build a production image and then tag and push that image to the Gitlab registry for use in the deployment stage.
 
-Note: any `scripts` you want to run here like `script/test` or `script/build` must either be a `sh`ell script (not bash) or you need to install bash on the docker image. If you fail to do this you'll get a cryptic message `/bin/sh: eval: line 98: script/test: not found` which seems like it's saying 'file not found' but what it's really saying is '`sh` file not found' and it is unaware that you have a `bash` script in that exact location.
+Note: any `scripts` you want to run here like `script/test` or `script/build` must either be a `sh`ell script (not bash) or you need to install bash on the docker image. If you fail to do this, you'll get a cryptic message `/bin/sh: eval: line 98: script/test: not found` which seems like it's saying 'file not found' but what it's really saying is '`sh` file not found' and it is unaware that you have a `bash` script in that exact location.
 
 The most unique thing here is perhaps the `push` step where we tag an image both with a commit reference via the gitlab-provided variable `$CI_COMMIT_SHORT_SHA` as well as the branch name via `$CI_COMMIT_REF_NAME`. The result is that the most recent / current image is tagged by branch name and by commit reference. On the next build, that can be used as a cache reference to save build time. This idea and many other things are borrowed / adapted from [blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices](https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/).
 
 Many of the variables used here are provided by gitlab such as `$CI_COMMIT_REF_NAME` but not all. When we start talking about the `deploy` stage later we'll need to add some of our own but for now we'll content ourselves with simply being able to test and build our code.
 
 If your first push was successful, your Gitlab registry now has a production image built and tagged ready to be pulled onto a production server. So let's turn our attention to getting those going.
+
+### Testing Production Images
+
+You might notice that the test stage follows the build stage. The idea here is that we want to test our production image so we have to build it first. But if you have an unexpected test failure (remember, that a push to master or staging is a deploy, so you shouldn't push code you haven't tested locally anyways) you could get into a situation that is hard to debug, no one wants to debug a testing issue that only happens on CI!
+
+The solution is to pass an argument to `script/test`. This will cause the test script to run in CI mode and will pull whatever image you like based no the tag name that you pass to `script/test`, so if you want to test the latest push to staging then
+
+    script/test staging
+
+If your repo is private, then you'll need to log into the Gitlab repo in order to pull that image down locally. The first time you log in to the gitlab registry you'll need to enter your username and password or you can setup either an access or deploy token see the [Gitlab registry docs](https://docs.gitlab.com/ee/user/packages/container_registry/#authenticating-to-the-gitlab-container-registry). Afterwards Docker will just reuse the credentials since it stores them.
 
 ## Staging and Production Servers
 
@@ -545,7 +568,7 @@ Please do have a look at `docker-compose.prod.yml`. You'll see again some of tho
 
 You'll notice that the `update_code` function calls the following to deploy:
 
-`docker stack deploy -c Docker/docker-compose.yml -c Docker/docker-compose.prod.yml -c Docker/docker-compose.traefik.yml SWARM_NAME --with-registry-auth` so you'll want to understand those files. Note also that `with-registry-auth` flag is there so that you can pull images from the registry. We'll get more into that in the CD section.
+`docker stack deploy -c Docker/docker-compose.yml -c Docker/docker-compose.prod.yml -c Docker/docker-compose.swarm.yml SWARM_NAME --with-registry-auth` so you'll want to understand those files. Note also that `with-registry-auth` flag is there so that you can pull images from the registry. We'll get more into that in the CD section.
 
 # Monitoring tools
 
@@ -568,7 +591,7 @@ https://docs.traefik.io/middlewares/basicauth/
 
 Now we'll turn our attention to connecting the wide world to our Lucky and GraphQL services. The first thing you'll need is a domain name and security certificates so that you can host a `https://example.com`. I'll assume that you took care of this back at the DigitalOcean/Cloudflare section. The second thing you'll need is a reverse proxy so that you can route requests to different services based on the address of the request. In the LHD example, if someone requests `api.example.com/v1/graphql` that request will go to Hasura and if it makes any other `api.example.com` request they'll go to Lucky. This is accomplished by routing `api.example.com` requests to the server (via CNAME records in Cloudflare) and using a neat little docker-ready reverse proxy called [Traefik](https://traefik.io).
 
-Once you've got those CNAME records up, let's take a look at the Traefik config. There are two parts, let's start with `docker-compose.traefik.yml` this file just defines the Traefik service. Some of the config is here and some of it is in `Docker/traefik/traefik.toml`. I think all of it can go in the docker-compose, but I feel like a nice separation of concerns is putting per-service config in the docker-compose and traefik-wide config into this `.toml`.
+Once you've got those CNAME records up, let's take a look at the Traefik config. There are two parts, let's start with `docker-compose.swarm.yml` this file just defines some swarm-only keys like 'deploy' and the Traefik service. Some of the config is here and some of it is in `Docker/traefik/traefik.toml`. I think all of it can go in the docker-compose, but I feel like a nice separation of concerns is putting per-service config in the docker-compose and traefik-wide config into this `.toml`.
 
 As we look through the YAML, the first thing we see is that it adds some traefik rules to the hasura and lucky services. You'll almost certainly want to change these to suit your own tastes, so I recommend you read their docs, for example: [docs.traefik.io/routing/overview](https://docs.traefik.io/routing/overview/).
 
@@ -576,7 +599,7 @@ The next thing I want you to notice is the service called `traefik-docker-link`.
 
 The last thing I'll point out here is a comment found in a few places throughout the project: `HTTPS_SWITCH`. This is for running a production setup in development. Unless you want to go to the trouble to convince your local system that https is a thing you can do, you'll need to comment out the lines marked here in order to `docker stack deploy` locally with Traefik in place. It's kind of a hassle, but boils down to just commenting out a the lines marked by this "switch".
 
-Now let's look at the TOML file. It just defines the HTTPS entrypoint and the HTTP redirect as well as providing the docker link so that we can do some service discovery in that `docker-compose.traefik` file.
+Now let's look at the TOML file. It just defines the HTTPS entrypoint and the HTTP redirect as well as providing the docker link so that we can do some service discovery in that `docker-compose.swarm.yml` file.
 
 If you have any other questions about this aspect of things, try to read through and understand the docker-compose setup we have here. There's a lot going on and it took a long time to figure out with lots of debugging. Hopefully for you it'll just work.
 

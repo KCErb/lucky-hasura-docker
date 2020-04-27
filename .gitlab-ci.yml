@@ -14,8 +14,10 @@ variables:
   POSTGRES_USER: admin
   POSTGRES_PASSWORD: secret
   POSTGRES_DB: PROJECT_NAME_test
-  SECRET_KEY_BASE: secret
+  SECRET_KEY_BASE: DEV_SECRET_KEY_BASE
   HASURA_GRAPHQL_ADMIN_SECRET: secret
+  SEND_GRID_KEY: unused
+  APP_DOMAIN: localhost
 
 services:
   - docker:dind # docker-in-docker, makes `docker` and `docker-compose` commands available
@@ -51,7 +53,7 @@ Push tag:
 Test:
   stage: test
   script:
-    - script/test -t
+    - script/test
 
 Deploy staging:
   stage: deploy
