@@ -2,10 +2,11 @@ FROM luckyhasuradocker/lucky-crystal:l0.21.0c0.34.0
 
 RUN mkdir /data
 WORKDIR /data
-COPY . /data
+COPY shard.yml /data
 
 # After this point the file differs from dev
 RUN shards install --production
+COPY . /data
 RUN crystal build script/docker/lucky_healthcheck.cr -o script/docker/lucky_healthcheck
 RUN crystal build --release src/start_server.cr
 RUN crystal build tasks.cr -o tasks/run_task
