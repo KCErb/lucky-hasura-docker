@@ -362,14 +362,8 @@ private def graphql_request(user) : Array(JSON::Any)
   response = client.post("/v1/graphql", headers: HTTP::Headers{"Content-Type" => "application/json"}, body: query)
   json = JSON.parse response.body
   data = json["data"]?
-  if data
-    users = data["users"].as_a
-    users.size
-    users.first["email"] == "buzz@foo_bar.business"
-  else
-    raise json.to_pretty_json
-  end
-  users
+  data = data.should_not be_nil
+  data["users"].as_a
 end
 ```
 
