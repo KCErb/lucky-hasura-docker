@@ -15,9 +15,11 @@ printf "\n▸ Bringing containers up\n"
 up -d | indent
 
 printf "\n▸ Starting hasura console\n"
+docker logs PROJECT_NAME_hasura
 until curl -s http://localhost:8080/healthz > /dev/null; do
   printf "Hasura not ready - checking again in 5s\n" | indent
   sleep 5
+  docker logs --since 5s PROJECT_NAME_hasura
 done
 printf "✔ Hasura is ready. Starting UI console on 9695.\n"
 docker exec -td PROJECT_NAME_hasura /bin/hasura-cli console --address 0.0.0.0 --no-browser

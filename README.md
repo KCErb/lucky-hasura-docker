@@ -84,13 +84,13 @@ Once that's done, you can move (almost) all of the files over to your lucky app.
 rm -rf foo_bar/script
 rm foo_bar/Procfile
 rm foo_bar/Procfile.dev
-rsync -avr --exclude='.git' lucky-hasura-docker/ foo_bar
+rsync -avr --exclude='.git' --exclude='TLDR.md' --exclude='README.template' --exclude='img' lucky-hasura-docker/ foo_bar
 mv lucky-hasura-docker/README.template foo_bar/README.md
 # add .docker-sync dir to git ignore
 echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
 ```
 
-**dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. So you can go ahead and get rid of the `.env` file provided by Lucky for now.
+**dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. It comes baked into Lucky so it must be good.
 
 The last change you'll need to make, now that the LHD and Lucky projects are together, is take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation, so I need you to paste this several places (until this project has automated tools for this kind of thing) 
 * `Docker/docker-compose.dev.yml`

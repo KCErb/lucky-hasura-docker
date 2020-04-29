@@ -16,7 +16,7 @@ if [ $# != 0 ]; then
   export POSTGRES_USER=postgres
   export POSTGRES_PASSWORD="" # Assumes local psql is already running in trust mode.
   export POSTGRES_DB=PROJECT_NAME_test
-  export SECRET_KEY_BASE="aIVkYhf56Ek5t2gTz4ClSeMTa+Vqv/CZizRgVgp5Lsw="
+  export SECRET_KEY_BASE="DEV_SECRET_KEY_BASE"
   export HASURA_GRAPHQL_ADMIN_SECRET=secret
   export LUCKY_TAG=$1
   export CI_SERVER=yes
@@ -42,8 +42,6 @@ start_hasura() {
     docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d --name PROJECT_NAME_hasura_test -e HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -p 8081:8080 -p 9696:9695 -p 9694:9693 hasura
   fi
 
-  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' PROJECT_NAME_hasura_test
-  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' PROJECT_NAME_lucky_test
   docker logs PROJECT_NAME_hasura_test
   until docker exec -t PROJECT_NAME_lucky_test curl -s PROJECT_NAME_hasura_test:8080/healthz > /dev/null; do
     printf "    Hasura not ready - checking again in 5s\n"
