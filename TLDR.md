@@ -44,13 +44,13 @@ cd foo_bar
 
 5. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace `DEV_SECRET_KEY_BASE` in the project with the value you find there. (No `sed` one-liner here, too many potential regex chars in the key_base.)
 
-Now you are ready to `script/up`, `script/down`, and `script/test`. Though in testing I recommend
+6. Run the project to make sure it works
 
 ```
-rm spec/setup/setup_database.cr
+script/up
 ```
 
-# Seed Database and Test Hasura
+# Seed Database, Test Hasura, Lucky Healthcheck
 
 1. Add this to the `call` method of `tasks/create_required_seeds`
 
@@ -62,7 +62,7 @@ rm spec/setup/setup_database.cr
 end
 ```
 
-2. Replace `payload` variable in `src/models/user_token.cr` with
+2. Replace `payload` variable in `src/models/user_token.cr` in the `self.generate` method with
 
 ```crystal
 # (demo ONLY, not a good way to assign roles!!!!)
@@ -81,9 +81,9 @@ payload = {"user_id" => user.id,
 }
 ```
 
-3. Add `user` role in Hasura dashboard with permission to select their own email.
+3. Add `user` role in Hasura dashboard (http://localhost:9695/) with permission to select their own email.
 
-3. Add `spec/requests/graphql/users/query_spec.cr` file with contents
+4. Add `spec/requests/graphql/users/query_spec.cr` file with contents
 
 ```crystal
 require "../../../spec_helper"
@@ -126,6 +126,87 @@ private def graphql_request(user) : Array(JSON::Any)
 end
 ```
 
+5. While we're messing with tests, this file is basically harmless but not needed, so delete
+
+```
+rm spec/setup/setup_database.cr
+```
+
+6. Run `script/test` to prove tests work as expected.
+
+7. Add the `version` route for healthchecks
+
+```
+up ssh
+# in container
+lucky gen.model Version
+```
+8. Add a table by replacing the contents of `src/models/version.cr` with:
+
+```crystal
+class Version < BaseModel
+  table :versions do
+    column value : String
+  end
+end
+```
+
+9. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+
+```crystal
+class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
+  def migrate
+    # Learn about migrations at: https://luckyframework.org/guides/database/migrations
+    create table_for(Version) do
+      primary_key id : Int64
+      add_timestamps
+      add value : String # <<< LIKE THIS
+    end
+  end
+
+  def rollback
+    drop table_for(Version)
+  end
+end
+```
+
+10. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+
+```crystal
+class Version::Get < ApiAction
+  include Api::Auth::SkipRequireAuthToken
+  get "/version" do
+    last_version = VersionQuery.last?
+    if last_version
+      json({version: last_version.value})
+    else
+      json({error: "Unable to reach database"}, 503)
+    end
+  end
+end
+```
+
+11. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+
+```crystal
+current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
+current_version = "pre-first-commit" unless $?.success?
+last_version = VersionQuery.last?
+version_is_same = last_version && last_version == current_version
+SaveVersion.create!(value: current_version) unless version_is_same
+```
+
+12. Migrate and test
+
+```
+up ssh
+# in container
+lucky db.migrate && lucky db.create_required_seeds
+exit
+# back home
+curl localhost:5000/version
+```
+
 # Production Instructions
 
 1. No travis in this Gitlab project
@@ -137,11 +218,13 @@ rm .travis.yml
 2. Commit this all and push without deploy to trigger a build stage
 
 ```
-git commit -am 'first commit no-deploy'
-git push
+git add .
+git commit -m 'first commit no-deploy'
+git remote add origin <url>
+git push -u origin master
 ```
 
-3. On the production server
+3. On the production server clone the repo and run docker swarm to pull the image you built...
 
 ```
 ??? script/deploy ???

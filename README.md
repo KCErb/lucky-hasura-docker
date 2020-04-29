@@ -117,7 +117,9 @@ If you're developing on macOS or Windows, and new to Docker, it's time to hit yo
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still need to install this since it's hardwired in at the moment. I know it's a pity to have a non-Docker dependency in a Docker project but it would seem that's just the state of Docker for now.
+LHD has a `docker-sync.yml` in it and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still need to install this since it's hardwired in at the moment. I know it's a pity to have a non-Docker dependency in a Docker project but it would seem that's just the state of Docker for now. 
+
+(Please keep an eye on the sync, it happens rarely, but you might find that it stops syncing: https://docker-sync.readthedocs.io/en/latest/troubleshooting/sync-stopping.html)
 
 #### up
 
@@ -533,6 +535,7 @@ Next we'll add a route to `GET` the current version. Put the following in `src/a
 
 ```crystal
 class Version::Get < ApiAction
+  include Api::Auth::SkipRequireAuthToken
   get "/version" do
     last_version = VersionQuery.last?
     if last_version
@@ -547,8 +550,8 @@ end
 Lastly, we'll add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
 ```crystal
-current_version = `git rev-parse --short=8 HEAD`.rchop
-current_version = "pre-first-commit" unless current_version.size > 0
+current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
+current_version = "pre-first-commit" unless $?.success?
 last_version = VersionQuery.last?
 version_is_same = last_version && last_version == current_version
 SaveVersion.create!(value: current_version) unless version_is_same
