@@ -6,5 +6,4 @@ COPY shard.yml /data
 
 # After this point the file differs from prod
 RUN shards install
-COPY . /data
 CMD ["lucky", "watch"]

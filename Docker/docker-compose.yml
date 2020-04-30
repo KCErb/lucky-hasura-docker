@@ -5,7 +5,7 @@ services:
     networks:
     - internal
   hasura:
-    image: hasura/graphql-engine:v1.2.0.cli-migrations
+    image: hasura/graphql-engine:v1.2.0.cli-migrations-v2
     # either build custom image or mount volumes, better to build
     # an image in the future, convenient to mount a volume for now
     volumes:
@@ -15,7 +15,7 @@ services:
     environment:
       # In dev, we launch the UI console from the CLI on port 9695
       HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: /hasura/metadata
       HASURA_GRAPHQL_SHOW_UPDATE_NOTIFICATION: "false"
     depends_on:
     - postgres
