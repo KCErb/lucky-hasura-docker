@@ -306,11 +306,9 @@ I just entered a new role called 'users' and edited the 'select' permission to a
 }
 ```
 
-As a last check, you should see that `db/hasura/migrations/metadata.yml` now looks like this:
+As a last check, you should see that `db/hasura/metadata/tables.yaml` now looks like this:
 
 ```
-version: 2
-tables:
 - table:
     schema: public
     name: users
@@ -480,22 +478,6 @@ Now let's look at the TOML file. It just defines the HTTPS entrypoint and the HT
 
 If you have any other questions about this aspect of things, try to read through and understand the docker-compose setup we have here. There's a lot going on and it took a long time to figure out with lots of debugging. Hopefully for you it'll just work.
 
-Traefik needs some env vars:
-
-```
-export ADMIN_USER=foo_bar_admin
-export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3O91TRh4K1
-export HASHED_PASSWORD="$apr1$Vz7vV1pF$Ip0GENX2ah09sEhp2PFaq."
-```
-
-The next two you can choose, again you should generate something randomly for the `ADMIN_PASSWORD` but then we need the hashed password in a different spot. We can generate the hash that traefik wants like so
-
-```
-echo $(htpasswd -nb foo_bar_admin QIgvfT8folMq1Myvqq53kT3O91TRh4K1)
-```
-
-Be careful that if this contains certain character than some shells will not be happy with simply double quoting the string!
-
 ### Docker Swarm
 
 The other thing the deploy script requires is that we have Docker running in swarm mode already. We can do this pretty easily (see [the Docker Swarm guide](https://docs.docker.com/engine/swarm/) if you're not sure about this)
@@ -621,12 +603,32 @@ You can also provide a second argument which works just like `deploy`. If it was
 
 NOTE: this one is a work in progress. There is a `rollback` function which spins up a container and runs `db.rollback` calls, but at the moment it just rolls back one migration. If your deploy had two for example, then you'd want to pass that as an argument. This can probably be automated now that I have a commit SHA, but I haven't implemented this yet so some manual rolling back will be needed in that case.
 
-## Monitoring with Prometheus
+## Monitoring with swarmprom
 
 TODO
+Do read the README section on Traefik, at least you'll see some screenshots to give you an idea of what we're gaining by having this here.
+
+https://github.com/stefanprodan/swarmprom
+
+Swarmprom needs some env vars:
+
+```
+export ADMIN_USER=foo_bar_admin
+export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
+export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
 export SLACK_URL=https://hooks.slack.com/services/G61J430A7/AK9P23U17/qaGCB6TKZVF1HRng0WqTEaeX
 export SLACK_CHANNEL=lhd-demo
 export SLACK_USER=Prometheus
+```
+
+The next two you can choose, again you should generate something randomly for the `ADMIN_PASSWORD` but then we need the hashed password in a different spot. We can generate the hash that traefik wants like so
+
+```
+openssl passwd -apr1 QIgvfT8folMq1Myvqq53kT3
+```
+
+Be careful that if this contains certain character than some shells will not be happy with simply double quoting the string!
+
 The SLACK ones you can skip for now, I don't think they'll break anything, but if you are excited about this kind of thing why not go get a webhook going right now (https://slack.com/intl/en-ca/help/articles/115005265063-Incoming-Webhooks-for-Slack)?
 
 I mentioned before that in addition to Traefik routing we can provide some monitoring with Prometheus. This is done with a separate swarm which is configured in the directory `prometheus-swarm`. For really excellent application monitoring you can either pay money or use this fairly complex docker swarm for free. I'm really glad that someone else already solved this problem: [github.com/stefanprodan/swarmprom](https://github.com/stefanprodan/swarmprom.git). In this repo I've adapted that repo somewhat to fit the needs of this project.
