@@ -50,7 +50,7 @@ cd foo_bar
 script/up
 ```
 
-# Seed Database, Test Hasura, Lucky Healthcheck
+# Seed Database, Test Lucky, Test Hasura
 
 1. Add this to the `call` method of `tasks/create_required_seeds`
 
@@ -134,14 +134,36 @@ rm spec/setup/setup_database.cr
 
 6. Run `script/test` to prove tests work as expected.
 
-7. Add the `version` route for healthchecks
+
+# Production Instructions
+
+1. Provision a production server somewhere
+2. Ensure you have the following variables in your environment. You'll have to generate them yourself
+
+```
+export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
+export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
+export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
+export POSTGRES_DB=foo_bar_production
+export APP_DOMAIN=foobar.business
+export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
+export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
+```
+
+3. Put Docker in swarm mode
+
+```
+docker swarm init --advertise-addr 104.248.51.205
+```
+
+4. Add the `version` route for healthchecks
 
 ```
 up ssh
 # in container
 lucky gen.model Version
 ```
-8. Add a table by replacing the contents of `src/models/version.cr` with:
+5. Add a table by replacing the contents of `src/models/version.cr` with:
 
 ```crystal
 class Version < BaseModel
@@ -151,7 +173,7 @@ class Version < BaseModel
 end
 ```
 
-9. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+6. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
 ```crystal
 class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
@@ -170,7 +192,7 @@ class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
 end
 ```
 
-10. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+7. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
 ```crystal
 class Version::Get < ApiAction
@@ -186,7 +208,7 @@ class Version::Get < ApiAction
 end
 ```
 
-11. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+8. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
 ```crystal
 current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
@@ -196,7 +218,7 @@ version_is_same = last_version && last_version == current_version
 SaveVersion.create!(value: current_version) unless version_is_same
 ```
 
-12. Migrate and test
+9. Migrate and test
 
 ```
 up ssh
@@ -207,7 +229,13 @@ exit
 curl localhost:5000/version
 ```
 
-# Production Instructions
+10. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
+
+```
+ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
+```
+
+# First push
 
 1. No travis in this Gitlab project
 
@@ -215,11 +243,14 @@ curl localhost:5000/version
 rm .travis.yml
 ```
 
-2. Commit this all and push without deploy to trigger a build stage
+HERE >>> first push??
+
+
+2. Commit this all and push with special flag for 'subtractive' mode ???
 
 ```
 git add .
-git commit -m 'first commit no-deploy'
+git commit -m 'first commit ???'
 git remote add origin <url>
 git push -u origin master
 ```
