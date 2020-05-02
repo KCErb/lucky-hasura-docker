@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+GITLAB_KEY=none
+SERVER_IP=none
+DEPLOY_ARG=''
+
+if [ "$1" = "production" ]; then
+  GITLAB_KEY=$GITLAB_PRODUCTION_KEY
+  SERVER_IP=$PRODUCTION_SERVER_IP
+fi
+
+if [ "$1" = "staging" ]; then
+  GITLAB_KEY=$GITLAB_STAGING_KEY
+  SERVER_IP=$STAGING_SERVER_IP
+fi
+
+if [ "$GITLAB_KEY" = "none" ]; then
+  echo 'No deploy, arg was neither `production` nor `staging`'
+  exit 1
+fi
+
+case "$CI_COMMIT_MESSAGE" in
+  *sub-deploy*) DEPLOY_ARG='-s' ;;
+esac
+
+
+echo 'adding ssh key'
+apk add --update openssh
+eval "$(ssh-agent -s)"
+echo "$GITLAB_KEY" | tr -d '\r' | ssh-add -
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
+
+echo "running: script/deploy $DEPLOY_ARG"
+ssh -t root@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git pull && script/deploy $DEPLOY_ARG && docker system prune -af'"

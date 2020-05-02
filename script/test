@@ -32,7 +32,7 @@ start_lucky() {
   else
     docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky tail -f /dev/null
   fi
-  docker exec -t PROJECT_NAME_lucky_test /data/script/docker/update-db
+  docker exec -t PROJECT_NAME_lucky_test /data/script/docker/update_db
 }
 
 start_hasura() {

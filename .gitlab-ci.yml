@@ -5,7 +5,7 @@ image: docker/compose:1.25.5
 
 stages:
   - build
-  - push
+  - tag
   - test
   - deploy
 
@@ -30,6 +30,9 @@ Build:
   except:
     variables:
       - $CI_COMMIT_MESSAGE =~ /no-build/
+      - $CI_COMMIT_MESSAGE =~ /tag-only/
+      - $CI_COMMIT_MESSAGE =~ /test-only/
+      - $CI_COMMIT_MESSAGE =~ /deploy-only/
   script:
     # fetches the latest image on the branch, does not fail if not found
     - docker pull $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME || true
@@ -37,11 +40,14 @@ Build:
     - docker push $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
 # The goal here is to tag builds by branch so that in the build step we can use previous work
-Push tag:
-  stage: push
+Tag:
+  stage: tag
   except:
     variables:
-      - $CI_COMMIT_MESSAGE =~ /no-build/
+      - $CI_COMMIT_MESSAGE =~ /no-tag/
+      - $CI_COMMIT_MESSAGE =~ /build-only/
+      - $CI_COMMIT_MESSAGE =~ /test-only/
+      - $CI_COMMIT_MESSAGE =~ /deploy-only/
   variables:
     # We do not need the source code here. Just playing with Docker.
     GIT_STRATEGY: none
@@ -52,6 +58,12 @@ Push tag:
 
 Test:
   stage: test
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /no-test/
+      - $CI_COMMIT_MESSAGE =~ /build-only/
+      - $CI_COMMIT_MESSAGE =~ /tag-only/
+      - $CI_COMMIT_MESSAGE =~ /deploy-only/
   script:
     - script/test
 
@@ -62,14 +74,11 @@ Deploy staging:
   except:
     variables:
       - $CI_COMMIT_MESSAGE =~ /no-deploy/
+      - $CI_COMMIT_MESSAGE =~ /build-only/
+      - $CI_COMMIT_MESSAGE =~ /tag-only/
+      - $CI_COMMIT_MESSAGE =~ /test-only/
   script:
-    - apk add --update openssh
-    - eval $(ssh-agent -s)
-    - echo "$GITLAB_STAGING_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -H $STAGING_SERVER_IP >> ~/.ssh/known_hosts
-    - ssh -t root@"$STAGING_SERVER_IP" "bash --login -c 'cd GITLAB_REPO && git pull && script/deploy && docker system prune -af'"
+    - script/ci_deploy staging
 
 Deploy production:
   stage: deploy
@@ -78,11 +87,8 @@ Deploy production:
   except:
     variables:
       - $CI_COMMIT_MESSAGE =~ /no-deploy/
+      - $CI_COMMIT_MESSAGE =~ /build-only/
+      - $CI_COMMIT_MESSAGE =~ /tag-only/
+      - $CI_COMMIT_MESSAGE =~ /test-only/
   script:
-    - apk add --update openssh
-    - eval $(ssh-agent -s)
-    - echo "$GITLAB_PRODUCTION_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -H $PRODUCTION_SERVER_IP >> ~/.ssh/known_hosts
-    - ssh -t root@"$PRODUCTION_SERVER_IP" "bash --login -c 'cd GITLAB_REPO && git pull && script/deploy && docker system prune -af'"
+    - script/ci_deploy production

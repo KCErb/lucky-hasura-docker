@@ -18,6 +18,15 @@ if [ "$LUCKY_ENV" != "production" ]; then
   export SEND_GRID_KEY=fake_key
 fi
 
+# Read in -s flag if provided
+TYPE='add'
+while getopts 's' flag; do
+  case "${flag}" in
+    s) TYPE='subtract';;
+  esac
+done
+shift $((OPTIND-1))
+
 OLD_VERSION=$1
 
 if [[ -z "$OLD_VERSION" ]]; then
@@ -25,12 +34,15 @@ if [[ -z "$OLD_VERSION" ]]; then
     exit 1
 fi
 
-# for update_code
+# export for update_code
 export LUCKY_TAG=$OLD_VERSION
 
-# rollback type
-ARG2="$2"
-TYPE="${ARG2:-add}"
+TYPE='add'
+while getopts 's' flag; do
+  case "${flag}" in
+    s) TYPE='subtract' ;;
+  esac
+done
 
 # rollback migration runs in current container to use newest code for rollback
 CURRENT_VERSION=`git rev-parse --short=8 HEAD`
@@ -47,7 +59,4 @@ else
   update_code
 fi
 
-
-printf "\n▸ Running hasura-cli metadata apply\n"
-docker exec -td PROJECT_NAME_hasura /bin/hasura-cli metadata apply
 printf "\n✔ All done.\n"

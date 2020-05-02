@@ -51,7 +51,4 @@ else
   migrate
 fi
 
-printf "\n▸ Running hasura-cli metadata apply\n"
-docker exec -td PROJECT_NAME_hasura /bin/hasura-cli metadata apply
-
 printf "\n✔ All done.\n"

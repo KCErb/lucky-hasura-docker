@@ -52,7 +52,7 @@ script/up
 
 # Seed Database, Test Lucky, Test Hasura
 
-1. Add this to the `call` method of `tasks/create_required_seeds`
+1. Add this to the `call` method of `tasks/create_required_seeds` (WARNING: if you don't want these in production add them to `create_sample_seeds` instead)
 
 ```crystal
 %w{admin buzz}.each do |name|
@@ -138,7 +138,18 @@ rm spec/setup/setup_database.cr
 # Production Instructions
 
 1. Provision a production server somewhere
-2. Ensure you have the following variables in your environment. You'll have to generate them yourself
+2. Provision two deploy tokens from Gitlab `Settings > CI/CD`. Name one `gitlab-deploy-token` and login with it from production
+
+        docker login registry.gitlab.com -u gitlab+deploy-token-#####
+    
+    Name the other whatever you like and store it in `.profile`.
+        
+    ```
+    export GITLAB_USERNAME=gitlab+deploy-token-######
+    export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
+    ```
+
+3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
 ```
 export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
@@ -150,19 +161,30 @@ export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
 export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
 ```
 
-3. Put Docker in swarm mode
+3. Put Docker in swarm mode on production server (use your server's IP here not mine!)
 
 ```
 docker swarm init --advertise-addr 104.248.51.205
 ```
 
-4. Add the `version` route for healthchecks
+4. Add the following directory on the production server. This is where your database volume will live
 
 ```
-up ssh
+mkdir -p /home/docker/data
+```
+
+5. Last step on production, change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
+
+### Meanwhile, back in your git repo
+
+6. Add the `version` route for healthchecks
+
+```
+up ssh # ssh's into the lucky container
 # in container
 lucky gen.model Version
 ```
+
 5. Add a table by replacing the contents of `src/models/version.cr` with:
 
 ```crystal
@@ -243,20 +265,57 @@ ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
 rm .travis.yml
 ```
 
-HERE >>> first push??
-
-
-2. Commit this all and push with special flag for 'subtractive' mode ???
+2. First push is no deploy, just build and tag and test.
 
 ```
 git add .
-git commit -m 'first commit ???'
+git commit -m 'first commit [no-deploy]'
 git remote add origin <url>
 git push -u origin master
 ```
 
-3. On the production server clone the repo and run docker swarm to pull the image you built...
+3. On the production server clone the repo in the home folder of root.
 
 ```
-??? script/deploy ???
+ssh user@foo_bar_production_ip
+# On production server
+git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
+# git checkout staging if on staging server
 ```
+
+4. Back on local box, make a second commit
+
+```
+git commit -am 'second commit [deploy-only][sub-deploy]'
+git push
+```
+
+5. After a minute or two you can go to `api.foobar.business/version` and see the version JSON served. Or post graphql queries to `https://api.foobar.business/v1/graphql`
+
+# Extras
+
+## Monitoring with Swarmprom
+
+
+1. Add some env vars (generate your own: `HASHED_PASSWORD` comes from `openssl passwd -apr1 $ADMIN_PASSWORD`)
+
+```
+export ADMIN_USER=foo_bar_admin
+export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
+export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
+export SLACK_URL=https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX
+export SLACK_CHANNEL=lhd-demo
+export SLACK_USER=Prometheus
+```
+
+2. Start the swarm
+
+```
+cd ~/foo_bar/Docker/prometheus-swarm
+docker stack deploy -c docker-compose.yml prometheus_swarm
+```
+
+3. Log in and play around, visit `grafana.foobar.business`.
+
+## Spin up production docker swarm locally
+

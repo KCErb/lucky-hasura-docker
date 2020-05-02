@@ -192,7 +192,7 @@ The other scripts are all for production, so you can read about them further dow
 
 I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone else's. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management, authentication, nightly biller etc.) from our presentation (GraphQL).
 
-Now let's seed the database with two users. An admin user and a regular user. Just add these lines to the `call` method in `tasks/create_required_seeds`.
+Now let's seed the database with two users. An admin user and a regular user. Just add these lines to the `call` method in `tasks/create_required_seeds` if you want them available in production (like I do for the demo) or to `tasks/create_sample_seeds` if you want them only in development.
 
 ```crystal
 %w{admin buzz}.each do |name|
@@ -245,7 +245,11 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 }
 ```
 
-And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste graphql in. Pretty spiffy. Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
+And you can paste the token into your favorite JWT parser (https://jwt.io is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste graphql in. Pretty spiffy. 
+
+![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/insomnia-chain.jpg)
+
+Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
 
 ```
 query MyQuery {
@@ -405,11 +409,17 @@ Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be
 
 Next, I recommend 
 
-1. ssh'ing into the server to make sure you can.
+1. ssh'ing into the server to make sure you can. (Note that these instructions don't include making a non-root user. I'm open to suggestions but for now everything is done as root in production. Please open an issue if this or anything else here is a security or best practices issue so that we can make this project as good as possible.)
 2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
 3. In your Gitlab repository, provision two Deploy Tokens under `Settings > CI/CD`. 
     1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select the `read_registry` scope. If you like to, you can use this one in the next step. I'm going to recommend creating a second token though because the special 'gitlab-deploy-token' has 'write' access which other tokens don't have. Also, for the other tokens you can use names to help you remember what it is for like 'foobar-production' and 'foobar-staging'. And then if you leak that token you can revoke it and leave your CI/CD alone. (See more at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).
-    2. The second token will be used to log into the Gitlab Docker registry from your server. Give it a meaningful name and read access to both the registry and the repository and jot down the username and password.
+    2. The second token will be used to log into the Gitlab Docker registry from your server. Give it a meaningful name and read access to both the registry and the repository and place the username and password in the environment
+        ```
+        export GITLAB_USERNAME=gitlab+deploy-token-######
+        export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
+        ```
+        In the deployment script, we use a login shell so you can put these in `~/.profile` for example.
+    
     3. In your Docker-enabled server, we next want to log in to Docker with the username and password you just got. 
         
             docker login registry.gitlab.com -u gitlab+deploy-token-#####
@@ -418,7 +428,7 @@ Next, I recommend
 
 Next we can do our DNS and security certificates through Cloudflare (for free). The first thing you'll need is a domain, so go get one of those. For the next steps, I won't go into too much detail since I want to let cloudflare maintain their own docs (see [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview)) but here are some basic steps. Please note that the process of creating a domain and provisioning certificates for it can be time consuming. If you get to a step and don't see a button or get a weird error like "this zone is not part of your account" then you probably just need to wait a few minutes (or as much as two days). Sorry, such is the nature of real production work. My experience is that I can do the following in 15 minutes without hassle:
 
-1. Setup some special CNAME's on the DNS page for various Docker services: `api`, `traefik`, and `grafana`.
+1. Setup some special CNAME's on the DNS page for various Docker services which we'll be setting up: `api`, `traefik`, and `grafana` is a good start.
     
     ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-dns.jpg)
 
@@ -480,13 +490,21 @@ If you have any other questions about this aspect of things, try to read through
 
 ### Docker Swarm
 
-The other thing the deploy script requires is that we have Docker running in swarm mode already. We can do this pretty easily (see [the Docker Swarm guide](https://docs.docker.com/engine/swarm/) if you're not sure about this)
+The other thing the deploy script requires is that we have Docker running in swarm mode already. We can do this pretty easily (see [the Docker Swarm guide](https://docs.docker.com/engine/swarm/) if you're not sure about this).
 
 ```
 docker swarm init --advertise-addr 104.248.51.205
 ```
 
 where you'll see that I've passed the public address of my production server to the `advertise-addr` option.
+
+In production the only volume that will be sync'd to the disk is the data volume for the postgres service. So you need to create the folder where that will live
+
+```
+mkdir -p /home/docker/data
+```
+
+Also since we're using `.profile` and a login shell when we ssh in from CI, let's just take care of a little common, annoying-but-harmless, issue. Please change the last line of your `.profile` from `mesg n || true` to `test -t 0 && mesg n`. This has to do with tty between Gitlab CI and a login shell, your production server will complain when a special machine like the Gitlab CI runner tries to connect (not having an STDIN and all).
 
 ## Health Checks
 
@@ -570,53 +588,105 @@ With those things in place, you'll be able to deploy to the server automatically
 
 # First Push and Beyond
 
-OK we are finally ready to commit and push and see all these moving parts in action! Once a `master` or `staging` branches have been pushed to, they will create a Pipeline on Gitlab.com which will run `script/build` and `script/test`. I recommend you study the `.gitlab-ci.yml` file and check your understanding of what this file is telling the pipeline to do.
+OK we are finally ready to commit and push and see all these moving parts in action! Once a branch has been pushed to, that push will create a Pipeline on Gitlab.com which will run `script/build` and `script/test`. I recommend you study the `.gitlab-ci.yml` file and check your understanding of what this file is telling the pipeline to do.
 
 (Note: any `scripts` you want to run here like `script/test` or `script/build` must either be a `sh`ell script (not bash) or you need to install bash on the docker image. If you fail to do this, you'll get a cryptic message `/bin/sh: eval: line 98: script/test: not found` which seems like it's saying 'file not found' but what it's really saying is '`sh` file not found' and it is unaware that you have a `bash` script in that exact location.)
 
 The most unique thing here is perhaps the `push` step where we tag an image both with a commit reference via the gitlab-provided variable `$CI_COMMIT_SHORT_SHA` as well as the branch name via `$CI_COMMIT_REF_NAME`. The result is that the most recent / current image is tagged by branch name and by commit reference. On the next build, that can be used as a cache reference to save build time. This idea and many other things are borrowed / adapted from [blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices](https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/).
 
->>> HERE How to name first push to make it -s mode??
+Anyways, let's get on with our first push. This one will skip the deployment stage as long as we include in the message `no-deploy`:
 
-If your first push was successful, congratulations! You can now simply commit and push code and the result will be a private docker registry with an image your Gitlab registry now has a production image built and tagged ready to be pulled onto a production server. So let's turn our attention to getting those going.
+```
+git add .
+git commit -m 'first commit [no-deploy]'
+git remote add origin <url>
+git push -u origin master
+```
 
-TODO: segue from first push to explaining future things like no-build, no-deploy, testing CI locally, script/rollback, monitoring, and testing production locally.
+You should expect to see your image get built and stored in your project's gitlab docker registry under two tags, one with the commit ref and another with the branch name. This will make it easy in the future to jump to any older image you had before as well as whatever the 'latest' image was to be built on a given branch.
+
+Assuming that went well, all we need to do now is clone the repo onto the production server. This is actually a bit of overkill, the only thing we really need on the production server is the deploy/rollback scripts and some docker-compose files since in production we'll only ever be running code that was built into a docker image. But I don't see a cleaner way of making sure those are in and up to date other than doing the whole repo. Not to mention if things get bad, you might be glad that you can make a quick change, commit it, pull it on production and build / deploy right away. Anyways, let's clone:
+
+```
+ssh root@foo_bar_production_ip
+# On production server
+git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
+# git checkout staging if on staging server
+```
+
+With that in place (and everything else that has come thus far) you should now be able to run all 4 stages of the CI workflow, or to just get something up quickly in this case you can do a deploy-only commit (update the readme or something and then). We'll use two flags (which are in square brackets not because they have to be but because I think that makes them easier to spot) `deploy-only` which tells the CI to skip the other stages via the `except` property in `.gitlab-ci.yml` and the `sub-deploy` flag which tells the CI to pass the `-s` flag (see `script/ci_deploy`). You really need this second flag on your first push because the `update_code` script is what starts the docker services so it must run first.
+
+```
+git commit -am 'second commit [deploy-only][sub-deploy]'
+git push
+```
+
+You should now see only the deploy stage running and it should start your docker services. If all went well, after a minute or two you can go to `api.foobar.business/version` and see the version JSON served. Or post graphql queries to `https://api.foobar.business/v1/graphql` (first you'll need a token by signing in `https://api.foobar.business/api/sign_ins`). If so then congratulations we're up and running!! 
+
+If not, you can check the status of your swarm from the production server. There are a lot of swarm commands and they are different than non-swarm commands so you might want to reference a [cheatsheet](https://www.google.com/search?q=docker+swarm+cheat+sheet). If you are getting any errors at all that means these instructions are out of date or the versions you are using don't match those in these instructions. If you've checked that you're running the same config files as this file is tagged with and having any problem please open an issue. Even (especially?) if it's a problem you were able to solve. I want a project created from this toolset to get up and running automatically on first deploy!
+
+It's great to have a real server up right? But sometimes things go wrong between local development and production. I hate it when that happens so the following tools make solving those kinds of problems much easier. Let's now turn out attention to when things go wrong with the following features:
+
+1. We can use commit messages to control which stages run in CI/CD.
+1. We can test the CI image locally.
+1. We can rollback changes if stuff goes wrong.
+1. We can monitor our production swarm and get alerts
+1. We can bring up the production swarm locally.
 
 ### Commit Message Flags
+
+Each job in the `.gitlab-ci.yml` file has a property like this:
+
+```
+except:
+  variables:
+    - $CI_COMMIT_MESSAGE =~ /no-deploy/
+    - $CI_COMMIT_MESSAGE =~ /build-only/
+    - $CI_COMMIT_MESSAGE =~ /tag-only/
+    - $CI_COMMIT_MESSAGE =~ /test-only/
+```
+
+That makes that stage the only one that runs when `*-only` is found in the commit message or the one that is skipped when `no-*` is found in the commit message. This can be useful, for example, when you're not changing the image but need a new build or deploy. Or when you just want to run tests on a previous build.
 
 ## Testing Production Images
 
 You might notice that the test stage follows the build stage. The idea here is that we want to test our production image so we have to build it first. But if you have an unexpected test failure (remember, that a push to master or staging is a deploy, so you shouldn't push code you haven't tested locally anyways) you could get into a situation that is hard to debug, no one wants to debug a testing issue that only happens on CI!
 
-The solution is to pass an argument to `script/test`. This will cause the test script to run in CI mode and will pull whatever image you like based no the tag name that you pass to `script/test`, so if you want to test the latest push to staging then
+The solution is to pass an argument to `script/test`. This will cause the test script to run in CI mode and will pull whatever image you like based on the tag name that you pass to `script/test`, so if you want to test the latest push to staging then
 
     script/test staging
 
-If your repo is private, then you'll need to log into the Gitlab repo in order to pull that image down locally. The first time you log in to the gitlab registry you'll need to enter your username and password or you can setup either an access or deploy token see the [Gitlab registry docs](https://docs.gitlab.com/ee/user/packages/container_registry/#authenticating-to-the-gitlab-container-registry). Afterwards Docker will just reuse the credentials since it stores them.
-
+If your repo is private, then you'll need to log into the Gitlab repo in order to pull that image down locally. The first time you log in to the gitlab registry on that machine, the script will prompt you to enter your username and password or you can setup either an access or deploy token see the [Gitlab registry docs](https://docs.gitlab.com/ee/user/packages/container_registry/#authenticating-to-the-gitlab-container-registry). Afterwards Docker will just reuse the credentials since it stores them.
 
 ### script/rollback
 
 The rollback script requires one argument: the version you want to rollback to. Since our images are tagged by commit SHA that means providing the first 8 characters of the commit SHA you want to go back to. If you've checked out that commit in the terminal, this is just the output of `git rev-parse --short=8 HEAD`.
 
-You can also provide a second argument which works just like `deploy`. If it was an additive deploy that you're rolling back, then the argument should either be `add` or not provided.
+You can also provide the `-s` flag just like `deploy` to signal whether you want to reverse an additive change (default) or a subtractive one.
+
+```
+script/rollback -s 08f4ea31
+```
 
 NOTE: this one is a work in progress. There is a `rollback` function which spins up a container and runs `db.rollback` calls, but at the moment it just rolls back one migration. If your deploy had two for example, then you'd want to pass that as an argument. This can probably be automated now that I have a commit SHA, but I haven't implemented this yet so some manual rolling back will be needed in that case.
 
 ## Monitoring with swarmprom
 
-TODO
-Do read the README section on Traefik, at least you'll see some screenshots to give you an idea of what we're gaining by having this here.
+I mentioned before that in addition to Traefik routing we can provide some monitoring with Prometheus. This is done with a separate swarm which is configured in the directory `prometheus-swarm`. For really excellent application monitoring you can either pay money or use this fairly complex docker swarm for free. I'm really glad that someone else already solved this problem: [github.com/stefanprodan/swarmprom](https://github.com/stefanprodan/swarmprom.git). In this repo I've adapted that repo somewhat to fit the needs of this project.
+
+This toolset can monitor your services, give you real-time graphs looking at memory usage, CPU usage, and much more across services and nodes, it can even send you Slack notifications when an alert is triggered (like memory getting too high). I think a good intro to this tool is the README:
 
 https://github.com/stefanprodan/swarmprom
 
-Swarmprom needs some env vars:
+Do give that a read (starting at the Traefik heading perhaps), at least you'll see some screenshots to give you an idea of what we're gaining by having this here.
+
+Before we can start that Swarm stack, Swarmprom needs some env vars on your production server:
 
 ```
 export ADMIN_USER=foo_bar_admin
 export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
 export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
-export SLACK_URL=https://hooks.slack.com/services/G61J430A7/AK9P23U17/qaGCB6TKZVF1HRng0WqTEaeX
+export SLACK_URL=https://hooks.slack.com/services/A61J43A7/AK9I23U17/qaGCB6TKZVF1HRng0WqTEaeX
 export SLACK_CHANNEL=lhd-demo
 export SLACK_USER=Prometheus
 ```
@@ -627,28 +697,36 @@ The next two you can choose, again you should generate something randomly for th
 openssl passwd -apr1 QIgvfT8folMq1Myvqq53kT3
 ```
 
-Be careful that if this contains certain character than some shells will not be happy with simply double quoting the string!
+Be careful that if this contains certain characters, some shells will not be happy with simply double-quoting the string!
 
-The SLACK ones you can skip for now, I don't think they'll break anything, but if you are excited about this kind of thing why not go get a webhook going right now (https://slack.com/intl/en-ca/help/articles/115005265063-Incoming-Webhooks-for-Slack)?
+The SLACK ones you can skip for now. In the Grafana dashboard you can add them with their nice interface. Including them in the env like this just sets up a place for all alerts to automatically go. In either case you'll need to make an incoming webhook: (https://slack.com/intl/en-ca/help/articles/115005265063-Incoming-Webhooks-for-Slack).
 
-I mentioned before that in addition to Traefik routing we can provide some monitoring with Prometheus. This is done with a separate swarm which is configured in the directory `prometheus-swarm`. For really excellent application monitoring you can either pay money or use this fairly complex docker swarm for free. I'm really glad that someone else already solved this problem: [github.com/stefanprodan/swarmprom](https://github.com/stefanprodan/swarmprom.git). In this repo I've adapted that repo somewhat to fit the needs of this project.
-
-This toolset can monitor your services, give you real-time graphs looking at memory usage, CPU usage, and much more across services and nodes, it can even send you Slack notifications when an alert is triggered (like memory getting too high). Lots of good stuff in here but I'm going to skip over it all since from my perspective (and as noted in the README), it can be as simple as
+Lots of good stuff in here but I'm going to skip over it all since from my perspective (and as noted in the README), it can be as simple as
 
 ```terminal
-cd Docker/prometheus-swarm
+cd ~/foo_bar/Docker/prometheus-swarm
 docker stack deploy -c docker-compose.yml prometheus_swarm
 ```
 
-But do be careful, this thing needs a bit of memory and if you're using the DigitalOcean $5 server you might not have enough room for Lucky, Hasura, and this monitoring stack all in the same tiny box.
+Then to see how those services are doing (hopefully all 1/1 Replicas) you can run
+
+```
+docker stack services prometheus_swarm
+```
+
+For example. Once grafana is up head on over to `grafana.foobar.business` and sign in with that username and password you put in the env. You'll see some default dashboards and can play around! Read their docs and finish setting up your alerts as you like.
 
 I feel like I should write more since there's a bunch going on under the hood here, but I'll let those interested read the `docker-compose` file, it 
-has all the details. In production I have another CNAME record for `grafana.foobar.business` and I can do my monitoring from there. The beauty of this all is that if you want to you can run that swarm on totally different nodes than the first one, they are not connected codewise.
+has all the details. In production I have another CNAME record for `grafana.foobar.business` and I can do my monitoring from there.
+
+Take note! Putting all of the above on one $5 box on digital ocean uses 80% of the RAM. I would recommend leaving off the monitoring tools while developing and then once the big release day comes upgrading a few bucks a month or putting your monitoring tools on a different box (that box just has to join the swarm, your local box could join the swarm for example).
+
+![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/grafana-dashboard.jpg)
 
 ## Testing Production Locally
 
 TODO
-The last thing I'll point out here is a comment found in a few places throughout the project: `HTTPS_SWITCH`. This is for running a production setup in development. Unless you want to go to the trouble to convince your local system that https is a thing you can do, you'll need to comment out the lines marked here in order to `docker stack deploy` locally with Traefik in place. It's kind of a hassle, but boils down to just commenting out a the lines marked by this "switch".
+The last thing I'll point out here is a comment found in a few places throughout the project: `HTTPS_SWITCH`. This is for running a production setup in development. Unless you want to go to the trouble to convince your local system that https is a thing you can do, you'll need to comment out the lines marked here in order to `docker stack deploy` locally with Traefik in place. It's kind of a hassle, but boils down to just commenting out the lines marked by this "switch".
 
 # Conclusion
 

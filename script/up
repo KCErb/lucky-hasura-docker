@@ -9,7 +9,7 @@ check_for_up
 
 printf "\n▸ Initializing database (builds lucky if needed)\n"
 docker-sync start | indent
-up /data/script/docker/update-db -s
+up /data/script/docker/update_db -s
 
 printf "\n▸ Bringing containers up\n"
 up -d | indent
