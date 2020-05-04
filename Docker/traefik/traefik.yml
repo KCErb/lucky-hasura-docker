@@ -1,0 +1,26 @@
+entryPoints:
+  web:
+    address: 80
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: 443
+providers:
+  file:
+    directory: /etc/traefik/config
+    watch: true
+  docker:
+    endpoint: 'tcp://traefik-docker-link:2375'
+    swarmMode: true
+    exposedByDefault: false
+    network: SWARM_NAME_internal
+# enables secure dashboard
+api: {}
+# # enables access log
+# accessLog: {}
+# # increases log level
+# log:
+#   level: DEBUG

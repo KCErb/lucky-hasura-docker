@@ -1,0 +1,6 @@
+http:
+  middlewares:
+    traefik-auth:
+      basicAuth:
+        users:
+          - '{{env "ADMIN_USER"}}:{{env "HASHED_PASSWORD"}}'

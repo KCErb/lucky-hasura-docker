@@ -5,7 +5,6 @@ services:
       - POSTGRES_PASSWORD
       - POSTGRES_USER
       - POSTGRES_DB
-    # HTTPS_SWITCH
     volumes:
     - /home/docker/data:/data
   hasura:

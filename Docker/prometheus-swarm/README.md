@@ -7,14 +7,11 @@
 [Alert Manager](https://github.com/prometheus/alertmanager)
 and [Unsee](https://github.com/cloudflare/unsee).
 
-The full source / instructions are from: https://github.com/stefanprodan/swarmprom.git
+The full source / instructions are from: https://github.com/stefanprodan/swarmprom.git. 
 
-This is a minimalized version with a custom docker-compose suited just for SWARM_NAME. You can launch it locally when testing swarm stuff in development by:
+To start this stack just run the following command from this directory. Be sure that the machine you run it on is in the same swarm as your main project and then call docker stack deploy:
 
-1. Be sure you turned off https stuff in SWARM_NAME swarm (flagged by HTTPS_SWITCH)
-
-2. Deploying the stack
-    cd GITLAB_REPO_NAME/Docker/prometheus-swarm
-    docker stack deploy -c docker-compose.yml prometheus_swarm
-
-3. Visit grafana.localhost
+```
+cd GITLAB_REPO_NAME/Docker/prometheus-swarm
+docker stack deploy -c docker-compose.yml prometheus
+```

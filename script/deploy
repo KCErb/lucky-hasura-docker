@@ -14,19 +14,6 @@ source "${BASH_SOURCE%/*}/functions/commons"
 source "${BASH_SOURCE%/*}/functions/update_code"
 source "${BASH_SOURCE%/*}/functions/migrate"
 
-# deploy tools read from env, so if we are not in production
-# we can provide some default values for dev purposes.
-if [ "$LUCKY_ENV" != "production" ]; then
-  export POSTGRES_PASSWORD=secret
-  export POSTGRES_USER=admin
-  export POSTGRES_DB=project_local_prod
-  export HASURA_GRAPHQL_ADMIN_SECRET=secret
-  export SECRET_KEY_BASE=secret
-  export SEND_GRID_KEY=fake_key
-  export APP_DOMAIN=localhost
-  export LUCKY_ENV=production
-fi
-
 # Support -s flag for making a 'subtractive' deployment
 TYPE='add'
 while getopts 's' flag; do
