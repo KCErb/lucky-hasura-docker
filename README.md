@@ -428,7 +428,7 @@ Next, I recommend
 
 Next we can do our DNS and security certificates through Cloudflare (for free). The first thing you'll need is a domain, so go get one of those. For the next steps, I won't go into too much detail since I want to let cloudflare maintain their own docs (see [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview)) but here are some basic steps. Please note that the process of creating a domain and provisioning certificates for it can be time consuming. If you get to a step and don't see a button or get a weird error like "this zone is not part of your account" then you probably just need to wait a few minutes (or as much as two days). Sorry, such is the nature of real production work. My experience is that I can do the following in 15 minutes without hassle:
 
-1. Setup some special CNAME's on the DNS page for various Docker services which we'll be setting up: `api`, `traefik`, and `grafana` is a good start.
+1. Setup some special CNAME's on the DNS page for various Docker services which we'll be setting up: `api`, `traefik`, and `grafana` is a good enough start.
     
     ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/cloudflare-dns.jpg)
 
@@ -507,11 +507,9 @@ Also since we're using `.profile` and a login shell when we ssh in from CI, let'
 
 In deployment we'll be using docker swarm so you may also notice the `script/docker/*healthcheck` files. These are little scripts that run every so often and make sure the services are healthy. You can read more about them here: [docs.docker.com/compose/compose-file/#healthcheck](https://docs.docker.com/compose/compose-file/#healthcheck). 
 
-LHD includes a health check for Lucky that makes sure it has a good DB connection. It relies on us creating a `version` route so we'll do that now.
+LHD includes a health check for Lucky that makes sure it has a good DB connection. You might wonder why we don't just use `curl` for the healthcheck and the answer is that we could. I chose to do a demo healthcheck in Crystal because I want to open the door to a more meaningful healthcheck. As your application logic gets more complex you may have a more complex definition of 'healthy' beyond a simple 200 coming back somewhere. At any rate, the one I've included here relies on us creating a `version` route so we'll do that now.
 
-The version route is used for our Docker healthcheck. We'll get to the Docker Swarm stuff a little later, but for now, let's give it a route it can ping to know our application is healthy (responding to requests and talking to the db). You can choose whatever you like for this, I'm choosing to store a 'version' string in the DB and fetch it on request.
-
-So let's create our first model: `version`. First, open a shell in the lucky container with `docker exec -it foo_bar_lucky /bin/bash`. And then run `lucky gen.model Version`. You should get something like
+So let's create our first model: `version`. First, open a shell in the lucky container with `docker exec -it foo_bar_lucky /bin/bash` (or `up ssh`). And then run `lucky gen.model Version`. You should get something like
 
 ```
 root@5b357ed2ad28:/data# lucky gen.model Version
@@ -674,7 +672,12 @@ This toolset can monitor your services, give you real-time graphs looking at mem
 
 https://github.com/stefanprodan/swarmprom
 
-Do give that a read (starting at the Traefik heading perhaps), at least you'll see some screenshots to give you an idea of what we're gaining by having this here.
+Do give that a read (starting at the Traefik heading perhaps), at least you'll see some screenshots to give you an idea of what we're gaining by having this here. I see a lot of forks of that repo and some out of date connections. I don't intend right now for swarmprom to be a hard dependency, so consider my including it here simply a launching point for your own production monitoring services. Notice that in order to take full advantage you'll want some more CNAME's as their README suggests:
+
+* grafana.foobar.business
+* alertmanager.foobar.business
+* unsee.foobar.business
+* prometheus.foobar.business
 
 Before we can start that Swarm stack, Swarmprom needs some env vars on your production server:
 

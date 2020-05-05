@@ -3,5 +3,5 @@
 # Run db.rollback in temporary copy of 'CURRENT_VERSION' container
 function rollback_db {
   printf "\n▸ Running db.rollback\n"
-  docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net SWARM_NAME_migrations registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$CURRENT_VERSION lucky db.rollback | indent
+  docker run --rm --env-file ./Docker/lucky/migrations.env -e DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB --net SWARM_NAME_migrations registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$CURRENT_VERSION /data/tasks/run_task db.rollback $MIGRATION_TIMESTAMP | indent
 }

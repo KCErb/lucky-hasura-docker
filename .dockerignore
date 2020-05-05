@@ -1,0 +1,13 @@
+bin
+lib
+.shards
+tmp
+Docker
+
+# script except script/docker
+script
+!script/docker
+
+# db except db/migrations
+db
+!db/migrations

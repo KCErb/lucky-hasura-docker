@@ -8,6 +8,7 @@ COPY shard.yml /data
 RUN shards install --production
 COPY . /data
 RUN crystal build script/docker/lucky_healthcheck.cr -o script/docker/lucky_healthcheck
+RUN crystal build script/docker/last_migration_timestamp.cr -o script/docker/last_migration_timestamp
 RUN crystal build --release src/start_server.cr
 RUN crystal build tasks.cr -o tasks/run_task
 CMD ["/data/start_server"]

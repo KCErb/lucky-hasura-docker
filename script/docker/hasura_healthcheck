@@ -1,3 +1,2 @@
 #!/bin/sh
-
 wget --quiet --spider http://localhost:8080/healthz || exit 1
