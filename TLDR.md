@@ -11,7 +11,7 @@
    cd lucky-hasura-docker
    ```
 
-3. Replace project variables. `sed` is different on linux and macOS :(
+3. Replace project variables. `sed` is different on Linux and macOS :(
 
    **Linux**
 
@@ -139,7 +139,7 @@
 ## Production Instructions
 
 1. Provision a production server somewhere
-2. Provision two deploy tokens from Gitlab `Settings > CI/CD`. Name one `gitlab-deploy-token` and login with it from production
+2. Provision two deploy tokens from Gitlab `Settings > CI/CD`. Name one `gitlab-deploy-token` and log in with it from production
 
    ```shell
    docker login registry.gitlab.com -u gitlab+deploy-token-#####
@@ -164,7 +164,7 @@
    export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
    ```
 
-4. Put Docker in swarm mode on production server (use your server's IP here not mine!)
+4. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
 
    ```shell
    docker swarm init --advertise-addr 104.248.51.205
@@ -179,7 +179,7 @@
 6. Last step on production, change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
 7. **Meanwhile, back in your git repo**
-   Add the `version` route for healthchecks
+   Add the `version` route for health checks
 
    ```shell
    up ssh # ssh's into the lucky container
@@ -267,7 +267,7 @@
    rm .travis.yml
    ```
 
-2. First push is no deploy, just build and tag and test.
+2. The first push is no deploy, just build and tag and test.
 
    ```shell
    git add .
@@ -285,14 +285,14 @@
    # git checkout staging if on staging server
    ```
 
-4. Back on local box, make a second commit
+4. Back on your local box, make a second commit
 
    ```shell
    git commit -am 'second commit [deploy-only][sub-deploy]'
    git push
    ```
 
-5. After a minute or two you can go to `api.foobar.business/version` and see the version JSON served. Or post graphql queries to `https://api.foobar.business/v1/graphql`
+5. After a minute or two, you can go to `api.foobar.business/version` and see the version JSON served. Or post GraphQL queries to `https://api.foobar.business/v1/graphql`
 
 ## Extras
 
