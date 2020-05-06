@@ -84,7 +84,7 @@ rm foo_bar/Procfile
 rm foo_bar/Procfile.dev
 echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
 # rsync contents of template dir into foo_bar
-rsync -avr lucky-hasura-docker/project_template/ foo_bar
+rsync -avr lucky-hasura-docker/proj_template/ foo_bar
 ```
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following, you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. It comes baked into Lucky so it must be good.

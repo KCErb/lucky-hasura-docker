@@ -1,6 +1,6 @@
 # Basic Up and Going
 
-1. Make sure you have `docker` `ruby` and `up`.
+1. Make sure you have `docker`, `lucky`, `ruby`, and `up`.
 2. Do the following
 
    ```shell
@@ -41,7 +41,7 @@
    rm foo_bar/Procfile.dev
    echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
    # rsync contents of template dir into foo_bar
-   rsync -avr lucky-hasura-docker/project_template/ foo_bar
+   rsync -avr lucky-hasura-docker/proj_template/ foo_bar
    cd foo_bar
    ```
 
