@@ -11,6 +11,6 @@ docker-sync clean | indent
 
 printf "\n▸ Removing volumes\n"
 docker volume rm SWARM_NAME_data | indent
-docker volume rm "$(docker volume ls -q -f dangling=true)" | indent
+docker volume rm $(docker volume ls -q -f dangling=true) | indent
 
 printf "\n✔ All done.\n"
