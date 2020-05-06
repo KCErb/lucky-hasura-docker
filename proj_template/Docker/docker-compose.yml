@@ -5,7 +5,7 @@ services:
     networks:
     - internal
   hasura:
-    image: hasura/graphql-engine:v1.2.0.cli-migrations-v2
+    image: hasura/graphql-engine:v1.2.1.cli-migrations-v2
     # either build custom image or mount volumes, better to build
     # an image in the future, convenient to mount a volume for now
     volumes:
