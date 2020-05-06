@@ -1,8 +1,8 @@
 # Guide
 
-Hi there, this is a quick writeup explaining a particular tech stack that I've been working on. The basic idea here is that I want my frontend apps to talk to the (Postgres) database via [GraphQL](https://graphql.org). [Hasura](https://hasura.io) is a great tool for painlessly adding a GraphQL layer to a Postgres database. As such, Hasura doesn't actually handle business logic. [Lucky](https://luckyframework.org) is a great web framework that we can use to handle the business logic, database migrations, and anything else not GraphQL related.
+Hi there, this is a writeup explaining a particular tech stack that I've been working on. The basic idea here is that I want my frontend apps to talk to the (Postgres) database via [GraphQL](https://graphql.org). [Hasura](https://hasura.io) is a great tool for painlessly adding a GraphQL layer to a Postgres database. As such, Hasura doesn't actually handle business logic. [Lucky](https://luckyframework.org) is a great web framework that we can use to handle the business logic, database migrations, and anything else not GraphQL related.
 
-If you're not familiar with any of these tools, please click on the links above and read since this tutorial is more about putting them together and less about why they are a good choice or how to use them. Much of the following assumes you have at least a cursory knowledge of GraphQL, Hasura, and Lucky.
+If you're not familiar with any of these tools, please click on the links above and read since this tutorial is more about putting them together and less about why they are a good choice or how to use them. Much of the following assumes you have at least a cursory knowledge of Crystal, Lucky, GraphQL, and Hasura.
 
 And how is it that we put it all together? Docker.
 
@@ -20,7 +20,7 @@ The first thing you'll need to do is get a Lucky project scaffolded using Lucky 
 
 With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local crystal might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal shouldn't really matter.
 
-`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can do either one, the example app uses an API-only app for now. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
+`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can of course do either one, but for this demo the focus is on backend tools, so the example app is API-only. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
 
 ```shell
 lucky init.custom foo_bar --api
@@ -30,15 +30,13 @@ After that, the project is created and you're told to do things like `check data
 
 ### LHD
 
-Getting all the configuration with Docker can be challenging, so I'm providing this repository which contains a bunch of Docker-related files. It has everything you need (and then some) to use Docker in development *and* deployment, so if you don't want the deployment stuff, you'll have to remove it yourself (until someone wants it out enough to submit a PR). Here's a link to the repo in case this README and the source get separated:
+Getting all the configuration with Docker can be challenging, so I'm providing this repository which contains a bunch of Docker-related files. It has everything you need (and then some) to use Docker in development *and* deployment, so if you don't want the deployment stuff, you'll have to remove it yourself (until someone wants it out enough to submit a PR to support a development-only mode). Here's a link to the repo in case this README and the source get separated:
 
 [github.com/KCErb/lucky-hasura-docker](https://github.com/KCErb/lucky-hasura-docker)
 
-I'm going to refer to this repo as LHD (lucky-hasura-docker) throughout the tutorial, so heads up!
+I'm going to refer to this project as LHD (lucky-hasura-docker) and in particular, since the boilerplate is in the `proj_template` directory of the repo, when I refer to `LHD/script/` you can find the directory I'm talking about by looking in `lucky-hasura-docker/proj_template/script/`.
 
-I plan to use tags and 'releases' and a 'tested on/by' table to communicate clearly how up-to-date this repo is. It'll probably take a couple of releases to get right, so hang with me if this is the first one or two :). When it's done, you should be able to clearly see 'this copy of the README has been tested on macOS with lucky 0.21.0 crystal 0.34.0 Hasura 1.1.1 Docker Engine 19.03.8' and that copy of the repo will be referencing those versions in its compose files.
-
-LHD has directories and files that you should add to your Lucky project, so go ahead and clone that down into a separate local directory for a start. We'll be modifying it and then moving files from LHD to the lucky project.
+This repo has directories and files that you should add to your Lucky project, so go ahead and clone that down into a separate local directory for a start. We'll be modifying it and then moving files over to the Lucky project.
 
 #### LHD Step 1: Search and Replace
 
@@ -51,11 +49,11 @@ This repo has a few "variables" that you should use search-and-replace to custom
 
 The first two are used in git commands (like `git clone`) to pull/push your project around (i.e. `gitlab.com/<GITLAB_USER>/<GITLAB_REPO_NAME>`).
 
-(Oh yeah, did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. In the future, if someone wants to pitch in instructions for doing this with a mixture of tools (Github and CircleCI for example), I'll be happy to discuss the best ways to make this more accessible to a wider audience.)
+(Oh yeah, did I mention that we'll be using Gitlab in this tutorial as well? That also is tied in with the deployment setup here. The roadmap for this project includes a plan to address this limitation.)
 
 `PROJECT_NAME` and `SWARM_NAME` are up to you, but for a start, you'll probably want them to be the same as `GITLAB_REPO_NAME`. The key is that these two names you sometimes have to type, so if your repo name is long like `lucky_hasura_docker` you might want your swarm and project names to be `lhd` or if you want them to be separate `lhd` and `lhd_swarm`. **Also** in many places I have docker configs like `SWARM_NAME_internal` so if your names have dashes you'll end up with mixed names `cool-app_internal`. If that bothers you, you might want to stick with underscore names. (Not to mention that in Crystal land, the project `foo_bar` will be in the namespace `FooBar` while the project `foo-bar` will be in the namespace `Foo::Bar`.)
 
-So go ahead and use sed, or your IDE or whatever you like to replace those throughout your copy of the LHD repo. The following might be handy:
+So go ahead and use `sed`, or your IDE or whatever you like to replace those throughout your copy of the LHD repo. The following might be handy:
 
 ##### Linux
 
@@ -77,13 +75,7 @@ git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
 git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
 ```
 
-##### Windows
-
-```shell
-PR welcome
-```
-
-Once that's done, you can move (almost) all of the files over to your lucky app. The following excerpt assumes your project and LHD are set up next to each other such as `git/lucky-hasura-docker` and `git/foo_bar`. It removes all of the Lucky scripts in `foo_bar/script` because those are not needed in LHD development. It also removes the `Procfile`s and copies almost everything from LHD to `foo_bar`. Be sure to replace `foo_bar` with your actual Lucky project's name.
+Once that's done, you can move all of the files in `proj_template` over to your Lucky app. The following excerpt assumes your project and LHD are set up next to each other such as `git/lucky-hasura-docker` and `git/foo_bar`. It removes all of the Lucky scripts in `foo_bar/script` because those are not needed in LHD development. It also removes the `Procfile`s and copies everything from `proj_template` to `foo_bar`. Be sure to replace `foo_bar` with your actual Lucky project's name!
 
 ```shell
 # modify foo_bar a bit
@@ -97,37 +89,33 @@ rsync -avr lucky-hasura-docker/project_template/ foo_bar
 
 **dotenv**: Oh and one more thing. I should probably take advantage of the dotenv idea. In the following, you won't see it used, but I'd love for someone who knows more about this pattern to improve this repo by implementing it. It comes baked into Lucky so it must be good.
 
-For the last change you'll need to make, now that the LHD and Lucky projects are together, take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation, so I need you to paste this several places (until this project has automated tools for this kind of thing)
+For the last change you'll need to make, now that the LHD and Lucky projects are together, take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation, so I need you to paste this in a few places (until this project has automated tools for this kind of thing).
 
 * `Docker/docker-compose.dev.yml`
 * `script/test`
 * `.gitlab-ci.yml`
 
-so that Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option too, it's detailed in their docs). I've marked the spot where this string goes with `DEV_SECRET_KEY_BASE`.
+This way Hasura knows the secret too and can verify your JWTs (if you don't want to share the secret, Hasura supports a public/private keypair option too, it's detailed in their docs). I've marked the spot where this string goes with `DEV_SECRET_KEY_BASE`.
 
 ### Docker Intro
 
 Assuming you've installed Docker and can use it on your local machine, let's learn a bit about the Docker config/tools that are provided by LHD.
 
-Before we dig in here, first I want to recommend that you read Docker's getting started guide
-
-[docs.docker.com/get-started](https://docs.docker.com/get-started/)
-
 I trust that you'll get to know Hasura and Lucky on your own, but Docker sometimes has a "set it and forget it" feeling and while that's kind of the point, I highly recommend a basic understanding of the tools since it's the glue holding this all together so nicely.
 
-Before going on, check if you understand this sentence: this is a multi-container project specified as services in several `docker-compose` files, so we'll be using `docker-compose` to build our images, bring up the services and, in production, deploy to a swarm. If you're comfortable with that language, read on, if not, go back and read the docs.
+Before going on, check if you understand this sentence: this is a multi-container project specified as services in several `docker-compose` files, so we'll be using `docker-compose` to build our images, bring up the services and, in production, deploy to a swarm. If you're comfortable with that language, read on, if not, please spend a few minutes with Docker docs / tutorials. Their overview page can at least get the ball rolling vocab-wise.
 
-#### docker-sync
+[docs.docker.com/get-started/overview](https://docs.docker.com/get-started/overview/)
+
+### docker-sync
 
 If you're developing on macOS or Windows, and new to Docker, it's time to hit you with some bad news: Docker can be painfully slow. The solution is to use `docker-sync` which is a 3rd-party Ruby app. It's really necessary if you'll have anyone developing on anything other than Linux and doesn't interfere with those on your team doing Linux development. It's a great solution to a problem I wish didn't exist. If you've never heard of it take a quick read over there and come back:
 
 [docker-sync.io](http://docker-sync.io/)
 
-LHD has a `docker-sync.yml` in it and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still need to install this since it's hardwired in at the moment. I know it's a pity to have a non-Docker dependency in a Docker project but it would seem that's just the state of Docker for now.
+LHD has a `docker-sync.yml` in it and a `.ruby-version` but if you don't have Ruby on your local machine you'll need to get it and then install the `docker-sync` gem. Even if you don't plan on developing on macOS or Windows, you'll still need to install this since it's hardwired into this project at the moment. I know it's a pity to have a non-Docker dependency in a Docker project but it would seem that's just the state of Docker for now.
 
-(Please keep an eye on the sync, it happens rarely, but you might find that it stops syncing: [docker-sync.readthedocs.io/en/latest/troubleshooting/sync-stopping](https://docker-sync.readthedocs.io/en/latest/troubleshooting/sync-stopping.html))
-
-#### up
+### up
 
 The last thing you'll need locally is `up`. You don't need this if you are already comfortable using Docker in development, in that case, you probably already have your own workflow and you can use it instead (just be sure to replace `up` in `script/up` and `script/down`). For the rest of us, `up` is simply a tool that keeps an eye on what local files were used to build a Docker image and takes note if any of them change. That way, instead of getting into the habit of starting our project with `docker-compose up` which can lead to surprises if you forget that you needed to rebuild your image(s), you can get into the habit of having an `up.yml` and then simply calling `up`.
 
@@ -148,7 +136,7 @@ The reason there are two images is that while `production` is stateless, `develo
 2. Developers need to be working with the same dependency trees. That is already taken care of by `shard.lock` but why re-install if you can simply stick your shard in an image to share?
 3. If the shards produce binaries, they will be machine-dependent.
 
-That means we have to rebuild the image whenever we want to update Crystal, Lucky, or our shards and we leave this to `up`. Whenever we run a command, `up lucky db.migrate` for example, `up` will double-check that our development image doesn't need to be rebuilt first based on the rules in `up.yml`.
+That means we have to rebuild the image whenever we want to update Crystal, Lucky, or our shards and we leave this to `up`. Whenever we run a command, `up lucky db.migrate` for example, `up` will check if our development image needs to be rebuilt based on the rules in `up.yml`.
 
 ## Scripts folder
 
@@ -166,13 +154,13 @@ The main ideas to notice here are
 
     [docs.docker.com/compose/startup-order](https://docs.docker.com/compose/startup-order/)
 
-    So you'll see a lot of that in these scripts.
+    You'll see a fair bit of that in these scripts.
 
 2. Hasura is an awesome tool that supports a lot of use cases! In ours, we want Lucky to manage our migrations so we need to turn off "migrations mode" this can be done with a simple API call ... once Hasura is ready to respond. This can take some time since Hasura won't start itself until it knows Postgres is ready (it has its own `wait_for_postgres`-like loop running under the hood too).
 
 Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ Setup is finished!` after about a minute. Then the script enters the Lucky container and starts a `tail -f` of the logs.
 
-You can now visit `http://localhost:5000` and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version number at `http://localhost:8080/v1/version` as `{"version":"v1.1.1"}`. And the Hasura console is at `http://localhost:9695/`. This console is slightly different than the default UI console. This one was launched from the Hasura CLI and (among other things) which means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`.
+Once Lucky gives you the signal, you can visit [localhost:5000](http://localhost:5000) and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version number at [localhost:8080/v1/version](http://localhost:8080/v1/version) as `{"version":"v1.2.0"}`. And the Hasura console is at [localhost:9695](http://localhost:9695/). This console is slightly different than the default UI console. This one was launched from the Hasura CLI and we're using the `cli-migrations` Hasura image. Among other things, this means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`.
 
 Lastly, be sure to take a look at your docker containers, you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll!
 
@@ -188,7 +176,7 @@ This script can run in two modes. If you pass an argument, it runs in production
 
 It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite.
 
-It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since `script/test` covers this base.
+It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since `script/test` covers this need.
 
 ### Other Scripts
 
@@ -202,20 +190,20 @@ Now let's seed the database with two users. An admin user and a regular user. Ju
 
 ```crystal
 %w{admin buzz}.each do |name|
-  email = name + "@foo_bar.business"
+  email = name + "@foobar.business"
   user = UserQuery.new.email(email).first?
   UserBox.create &.email(email) unless user
 end
 ```
 
-And then you can run `up lucky db.create_required_seeds` and they'll be added to your database. You'll be able to see that for yourself pretty quickly if you go to `http://localhost:9695/` (your Hasura Console). From there you can run a GraphQL query for users (if you are tracking the users' table) or just view the table directly. If you're new to Hasura, take a second to play around here.
+And then you can run `up lucky db.create_required_seeds` and they'll be added to your database (the `up` command here will spin up a lucky container and run the command there). You'll be able to see that for yourself pretty quickly if you go to [localhost:9695](http://localhost:9695/) (your Hasura Console). From there you can view the `users` table (if you are tracking it).
 
 Next, we'll need to get Lucky to produce the kind of JWT that Hasura can understand. Go into `src/models/user_token.cr` and replace the `payload` with
 
 ```crystal
 allowed_roles = ["user"]
 default_role = "user"
-if user.email.includes?("admin")
+if user.email == "admin@foobar.business"
   allowed_roles << "admin"
   default_role = "admin"
 end
@@ -228,14 +216,14 @@ payload = {"user_id" => user.id,
 }
 ```
 
-Please don't use this in production for determining roles, this is just a demo :)
+Please don't use this in production for determining roles, this is just a demo! When the time comes to actually determine how you want to handle authentication, you should read Hasura's excellent documentation on [JWT authentication](https://hasura.io/docs/1.0/graphql/manual/auth/authentication/jwt.html).
 
 Note: If you watch the Docker logs in your `foo_bar_lucky` container, you should notice that as soon as you save changes to this file, the app recompiles. You don't need to do anything else to build or serve the app, just save changes, and wait a second for it to recompile.
 
 Now we should be able to post the username and password to `localhost:5000/api/sign_ins` and get back our JWT:
 
 ```shell
-curl localhost:5000/api/sign_ins -X POST -d "user:email=admin@foo_bar.business" -d "user:password=password"
+curl localhost:5000/api/sign_ins -X POST -d "user:email=admin@foobar.business" -d "user:password=password"
 ```
 
 (If you look in `spec/support/boxes/user_box.cr` you'll see that the default password is "password".)
@@ -245,17 +233,17 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 ```json
 {
   "user": {
-    "email": "admin@foo_bar.business",
+    "email": "admin@foobar.business",
     "password": "password"
   }
 }
 ```
 
-And you can paste the token into your favorite JWT parser ([jwt.io](https://jwt.io) is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the 'Bearer' token in the other and they even have a 'graphql' mode that just lets you paste GraphQL in. Pretty spiffy.
+And you can paste the token into your favorite JWT parser ([jwt.io](https://jwt.io) is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the `Bearer` token in the other and they even have a `graphql` mode that just lets you paste GraphQL in. Pretty spiffy.
 
 ![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/master/img/insomnia-chain.jpg)
 
-Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to `http://localhost:8080/v1/graphql` using the token you got from your admin sign in.
+Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to [localhost:8080/v1/graphql](http://localhost:8080/v1/graphql) using the token you got from your admin sign in.
 
 ```graphql
 query MyQuery {
@@ -272,10 +260,10 @@ and receive in response
   "data": {
     "users": [
       {
-        "email": "admin@foo_bar.business",
+        "email": "admin@foobar.business",
       },
       {
-        "email": "buzz@foo_bar.business",
+        "email": "buzz@foobar.business",
       }
     ]
   }
@@ -309,7 +297,7 @@ I just entered a new role called 'users' and edited the 'select' permission to a
   "data": {
     "users": [
       {
-        "email": "buzz@foo_bar.business"
+        "email": "buzz@foobar.business"
       }
     ]
   }
@@ -334,7 +322,7 @@ As a last check, you should see that `db/hasura/metadata/tables.yaml` now looks 
 
 ### Test Hasura
 
-Now let's add the above to our Lucky test suite. Here's an example file that gets the job done. I'm not saying this is an ideal way to test, I would actually prefer to abstract this out a little so that I could have a GraphQL request helper and a config file for example, but for the purposes of demonstration, it's easier to keep it in a single file. Go ahead and add this to `spec/requests/graphql/users/query_spec.r` if you want to copy the pattern Lucky ships with and then run `crystal spec` in your test container.
+Now let's add the above to our Lucky test suite. Here's an example file that gets the job done. I'm not saying this is an ideal way to test, I would actually prefer to abstract this out a little so that I could have a GraphQL request helper and a config file for example, but for the purposes of demonstration, it's easier to keep it in a single file. Go ahead and add this to `spec/requests/graphql/users/query_spec.cr` if you want to copy the pattern Lucky ships with. Then run `crystal spec` in your test container.
 
 ```crystal
 require "../../../spec_helper"
@@ -362,7 +350,7 @@ private def make_test_users
   {admin, user}
 end
 
-# returns [{"email" => "buzz@foo_bar.business"}]
+# returns [{"email" => "buzz@foobar.business"}]
 private def graphql_request(user) : Array(JSON::Any)
   client = HTTP::Client.new("foo_bar_hasura_test", 8080)
   client.before_request do |request|
@@ -377,27 +365,21 @@ private def graphql_request(user) : Array(JSON::Any)
 end
 ```
 
-Though I don't recommend following exactly the above as a kind of 'best practice', I do recommend understanding what's going on in there implementing something like it since making sure you didn't break your GraphQL endpoint recently is a good idea.
+Though I don't recommend following exactly the above as a kind of 'best practice', I do recommend understanding what's going on in there and implementing something like it since making sure you didn't break your GraphQL endpoint recently is a good idea.
 
 ### From Development to Production
 
 And now, it is decision time. If you're not much interested in deploying your project to a server whenever you push to a special branch then you should delete the provided `.gitlab-ci.yml` and this is where we part ways. Good luck to you, please feel free to open an issue or a PR to improve this project in making it more geared towards people like yourself. I'd be happy to support you and them here :)
 
-If you are however interested in getting some of the awesome benefits I've put together here, then the next step will be to start thinking about deployment. We'll be commiting and pushing our project to the `master` branch on Gitlab and that will kick off a deployment to a production server. So before we push this project up, we'll need to provision such a server and get some environment variables put together in Gitlab and on the server so that things go smoothly.
-
-For now, we'll just remove the TravisCI file that lucky provided since we'll not be using their service here:
-
-```shell
-rm foo_bar/.travis.yml
-```
+If you are however interested in getting some of the awesome benefits I've put together here, then the next step will be to start thinking about deployment.
 
 ## Lucky + Hasura via Docker in Production
 
-OK, now for the juicy stuff. The above is nice and all, but we can go way further. We can use [Traefik](https://docs.traefik.io/) to put up a load-balanced reverse-proxy to our Docker Swarm. We can have Lucky queries going to some containers and GraphQL queries going to others. (Yay *real* microservices, once while developing this workflow, I had my Lucky service down for days and didn't notice because I was just testing the GraphQL and had no other alerts setup. These things are actually independent. I love that. And with a few keystrokes, we can scale up and down to match needs. Maybe we have a bunch of mobile users hammering the GraphQL endpoints but the Lucky server is kinda bored. No problem, just scale up that Hasura service! To keep an eye on everything, a separate swarm for monitoring tools under the [Prometheus](https://prometheus.io/) umbrella are available and we bring that swarm online with an easy one-liner.
+OK, now for the juicy stuff. The above is nice and all, but we can go way further. We can use [Traefik](https://docs.traefik.io/) to put up a load-balanced reverse-proxy to our Docker Swarm. We can have Lucky queries going to some containers and GraphQL queries going to others. (Yay *real* microservices! Once, while developing this workflow, I had my Lucky service down for days and didn't notice because I was just testing the GraphQL and had no other alerts setup.) These things are actually independent. I love that. And with a few keystrokes, we can scale up and down to match needs. Maybe we have a bunch of mobile users hammering the GraphQL endpoints but the Lucky server is kinda bored. No problem, just scale up that Hasura service! To keep an eye on everything, a separate swarm for monitoring tools under the [Prometheus](https://prometheus.io/) umbrella are available and we bring that swarm online with an easy one-liner.
 
 What's more, is Gitlab can do the heavy lifting for us with respect to building and tagging images. If there's an issue with a deployment on staging, we can use the rollback script to go back to a previous image and database state since the images are tagged by git commit. I'm even experimenting with two kinds of migrations: "additive" and "subtractive" to go for a perfect zero-downtime history. If you're interested in these ideas read on, the main motivation for building all of this was to achieve DevOps Nirvana and if the below isn't it, then I hope it's close enough that the community can help me get it the rest of the way there. We'll have to sacrifice a bit though, some of the details of a real production deployment get a little hairy but it's worth it in the end.
 
-We're almost ready to show off this smooth automatic build system with our first commit and push. If you take a look at `.gitlab-ci.yml` you'll see that we have 4 stages `test`, `build`, `push`, and `deploy`. This flag is configured to skip the deploy stage. Hence this first commit will test our code, then build a production image and then tag and push that image to the Gitlab registry, then ssh into the production machine and run the deploy script which pulls the image from Gitlab and deploys it to the swarm. So we have a few things to do to get ready.
+First we have a few things to do to get ready.
 
 1. Prepare the production machine / environment
 2. Add a health check endpoint to Lucky so that Docker swarm can determine if our Lucky containers are running well.
@@ -409,13 +391,13 @@ The first thing we need to do is get some servers up somewhere. It's not terribl
 
 (Sidenote: for a real project, I'm a fan of the idea of having a dedicated "staging" server, so later it'll come up that we, in fact, have two servers here with slightly different purposes but identical configuration.)
 
-With DigitalOcean (DO) we can spin up a little hobby server for $5 per month. I don't want to go too far astray from the topic here, so I'll leave it to you to do a little googling and learn how to use it. I will point out however that the [DigitalOcean 1-click Docker app](https://marketplace.digitalocean.com/apps/docker) is a pretty convenient starting place. They can setup ssh-only access for you before you even create the droplet which is a great starting place security-wise.
+With DigitalOcean (DO) we can spin up a little hobby server for $5 per month. I don't want to go too far astray from the topic here, so I'll leave it to you to do a little googling and learn how to use it. I will point out however that the [DigitalOcean 1-click Docker app](https://marketplace.digitalocean.com/apps/docker) is pretty convenient. They can setup ssh-only access for you before you even create the droplet which is a great starting place security-wise.
 
-Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be sure you do a little reading on using Docker in production. There are some settings security-wise that you'll want to get right, and plenty of reading material out there to get you started. So please address this now. (But don't log into Docker yet on the new box, we'll be logging into the Gitlab registry since this box will need to talk to your custom-built images).
+Whether you use DigitalOcean or AWS or a box in your basement, you'll want to be sure you do a little reading on using Docker in production. There are some settings that you'll want to get right for security reasons, and plenty of reading material out there to get you started. So please address this now. (But don't log into Docker yet on the new box, we'll be logging into your Gitlab repo's Docker registry since this box will need to talk to your custom-built images).
 
 Next, I recommend:
 
-1. `ssh`ing into the server to make sure you can. (Note that these instructions don't include making a non-root user. I'm open to suggestions but for now, everything is done as root in production. Please open an issue if this or anything else here is a security or best practices issue so that we can make this project as good as possible.)
+1. `ssh`ing into the server to make sure you can. (Note that these instructions don't include making a non-root user. I'm open to suggestions, but for now, everything is done as root in production. Please open an issue if this or anything else here is a security or best practices issue so that we can make this project as good as possible.)
 2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
 3. In your Gitlab repository, provision two Deploy Tokens under `Settings > CI/CD`.
     1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select the `read_registry` scope. If you like to, you can use this one in the next step. I'm going to recommend creating a second token though because the special 'gitlab-deploy-token' has 'write' access which other tokens don't have. Also, for the other tokens, you can use names to help you remember what it is for like 'foobar-production' and 'foobar-staging'. And then if you leak that token you can revoke it and leave your CI/CD alone. (See more at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).

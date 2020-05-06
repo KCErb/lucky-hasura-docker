@@ -35,12 +35,13 @@
 
    ```shell
    cd ..
+   # modify foo_bar a bit
    rm -rf foo_bar/script
    rm foo_bar/Procfile
    rm foo_bar/Procfile.dev
-   rsync -avr --exclude='.git' --exclude='TLDR.md' --exclude='README.template' --exclude='img' lucky-hasura-docker/ foo_bar
-   mv lucky-hasura-docker/README.template foo_bar/README.md
    echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
+   # rsync contents of template dir into foo_bar
+   rsync -avr lucky-hasura-docker/project_template/ foo_bar
    cd foo_bar
    ```
 
@@ -58,7 +59,7 @@
 
    ```crystal
    %w{admin buzz}.each do |name|
-     email = name + "@foo_bar.business"
+     email = name + "@foobar.business"
      user = UserQuery.new.email(email).first?
      UserBox.create &.email(email) unless user
    end
@@ -113,7 +114,7 @@
      {admin, user}
    end
 
-   # returns [{"email" => "user@foo_bar.business"}]
+   # returns [{"email" => "user@foobar.business"}]
    private def graphql_request(user) : Array(JSON::Any)
      client = HTTP::Client.new("foo_bar_hasura_test", 8080)
      client.before_request do |request|
