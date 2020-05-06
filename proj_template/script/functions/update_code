@@ -2,6 +2,6 @@
 
 # REQUIRES LUCKY_TAG since docker-compose.prod.yml uses them
 function update_code {
-  printf "\n▸ Deploying Lucky Version $LUCKY_TAG\n"
+  printf '\n▸ Deploying Lucky Version %s\n' "$LUCKY_TAG"
   docker stack deploy -c Docker/docker-compose.yml -c Docker/docker-compose.prod.yml -c Docker/docker-compose.swarm.yml SWARM_NAME --with-registry-auth | indent
 }

@@ -29,7 +29,7 @@ until curl -s http://localhost:9693/apis/migrate/settings > /dev/null; do
   printf "Console is unavailable - checking again in 5s\n" | indent
   sleep 5
 done
-curl -sH 'Content-Type: application/json' -X PUT -d '{"name": "migration_mode", "value": "false"}' http://localhost:9693/apis/migrate/settings > /dev/null | indent
+curl -sH 'Content-Type: application/json' -X PUT -d '{"name": "migration_mode", "value": "false"}' http://localhost:9693/apis/migrate/settings > /dev/null 2>&1 | indent
 
 printf "\n✔ Setup is finished!\n"
 

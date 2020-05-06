@@ -1,6 +1,6 @@
 #!/bin/bash
 function indent {
-  while read LINE; do
+  while read -r LINE; do
     echo "  $LINE" || true
   done
 }

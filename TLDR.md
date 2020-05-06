@@ -3,319 +3,317 @@
 1. Make sure you have `docker` `ruby` and `up`.
 2. Do the following
 
-```
-mkdir lhd-test
-cd lhd-test
-git clone https://github.com/KCErb/lucky-hasura-docker
-lucky init.custom foo_bar --api
-cd lucky-hasura-docker
-```
+   ```shell
+   mkdir lhd-test
+   cd lhd-test
+   git clone https://github.com/KCErb/lucky-hasura-docker
+   lucky init.custom foo_bar --api
+   cd lucky-hasura-docker
+   ```
 
 3. Replace project variables. `sed` is different on linux and macOS :(
 
-**Linux**
-```
-git grep -l 'GITLAB_USER' | xargs sed -i 's/GITLAB_USER/kcerb/g'
-git grep -l 'GITLAB_REPO_NAME' | xargs sed -i 's/GITLAB_REPO_NAME/foo_bar/g'
-git grep -l 'PROJECT_NAME' | xargs sed -i 's/PROJECT_NAME/foo_bar/g'
-git grep -l 'SWARM_NAME' | xargs sed -i 's/SWARM_NAME/foo_bar/g'
-```
+   **Linux**
 
-**macOS**
-```
-git grep -l 'GITLAB_USER' | xargs sed -i '' -e 's/GITLAB_USER/kcerb/g'
-git grep -l 'GITLAB_REPO_NAME' | xargs sed -i '' -e 's/GITLAB_REPO_NAME/foo_bar/g'
-git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
-git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
-```
+   ```shell
+   git grep -l 'GITLAB_USER' | xargs sed -i 's/GITLAB_USER/kcerb/g'
+   git grep -l 'GITLAB_REPO_NAME' | xargs sed -i 's/GITLAB_REPO_NAME/foo_bar/g'
+   git grep -l 'PROJECT_NAME' | xargs sed -i 's/PROJECT_NAME/foo_bar/g'
+   git grep -l 'SWARM_NAME' | xargs sed -i 's/SWARM_NAME/foo_bar/g'
+   ```
+
+   **macOS**
+
+   ```shell
+   git grep -l 'GITLAB_USER' | xargs sed -i '' -e 's/GITLAB_USER/kcerb/g'
+   git grep -l 'GITLAB_REPO_NAME' | xargs sed -i '' -e 's/GITLAB_REPO_NAME/foo_bar/g'
+   git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
+   git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
+   ```
 
 4. Do the following
 
-```
-cd ..
-rm -rf foo_bar/script
-rm foo_bar/Procfile
-rm foo_bar/Procfile.dev
-rsync -avr --exclude='.git' --exclude='TLDR.md' --exclude='README.template' --exclude='img' lucky-hasura-docker/ foo_bar
-mv lucky-hasura-docker/README.template foo_bar/README.md
-echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
-cd foo_bar
-```
+   ```shell
+   cd ..
+   rm -rf foo_bar/script
+   rm foo_bar/Procfile
+   rm foo_bar/Procfile.dev
+   rsync -avr --exclude='.git' --exclude='TLDR.md' --exclude='README.template' --exclude='img' lucky-hasura-docker/ foo_bar
+   mv lucky-hasura-docker/README.template foo_bar/README.md
+   echo '\n.docker-sync/\nup.cache' >> foo_bar/.gitignore
+   cd foo_bar
+   ```
 
 5. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace `DEV_SECRET_KEY_BASE` in the project with the value you find there. (No `sed` one-liner here, too many potential regex chars in the key_base.)
 
 6. Run the project to make sure it works
 
-```
-script/up
-```
+   ```shell
+   script/up
+   ```
 
-# Seed Database, Test Lucky, Test Hasura
+## Seed Database, Test Lucky, Test Hasura
 
 1. Add this to the `call` method of `tasks/create_required_seeds` (WARNING: if you don't want these in production add them to `create_sample_seeds` instead)
 
-```crystal
-%w{admin buzz}.each do |name|
-  email = name + "@foo_bar.business"
-  user = UserQuery.new.email(email).first?
-  UserBox.create &.email(email) unless user
-end
-```
+   ```crystal
+   %w{admin buzz}.each do |name|
+     email = name + "@foo_bar.business"
+     user = UserQuery.new.email(email).first?
+     UserBox.create &.email(email) unless user
+   end
+   ```
 
 2. Replace `payload` variable in `src/models/user_token.cr` in the `self.generate` method with
 
-```crystal
-# (demo ONLY, not a good way to assign roles!!!!)
-allowed_roles = ["user"]
-default_role = "user"
-if user.email.includes?("admin")
-  allowed_roles << "admin" 
-  default_role = "admin"
-end
-payload = {"user_id" => user.id,
-  "https://hasura.io/jwt/claims" => {
-    "x-hasura-allowed-roles" => allowed_roles,
-    "x-hasura-default-role" => default_role,
-    "x-hasura-user-id" => user.id.to_s,
-  }
-}
-```
+   ```crystal
+   # (demo ONLY, not a good way to assign roles!!!!)
+   allowed_roles = ["user"]
+   default_role = "user"
+   if user.email.includes?("admin")
+     allowed_roles << "admin"
+     default_role = "admin"
+   end
+   payload = {"user_id" => user.id,
+     "https://hasura.io/jwt/claims" => {
+       "x-hasura-allowed-roles" => allowed_roles,
+       "x-hasura-default-role" => default_role,
+       "x-hasura-user-id" => user.id.to_s,
+     }
+   }
+   ```
 
-3. Add `user` role in Hasura dashboard (http://localhost:9695/) with permission to select their own email.
+3. Add `user` role in Hasura dashboard [localhost:9695](http://localhost:9695/) with permission to select their own email.
 
 4. Add `spec/requests/graphql/users/query_spec.cr` file with contents
 
-```crystal
-require "../../../spec_helper"
-require "http/client"
-require "json"
+   ```crystal
+   require "../../../spec_helper"
+   require "http/client"
+   require "json"
 
-describe "GraphQL::Users::Query" do
-  it "admin can see all users" do
-    admin, user = make_test_users
-    users = graphql_request(admin)
-    users.size.should eq 2
-  end
+   describe "GraphQL::Users::Query" do
+     it "admin can see all users" do
+       admin, user = make_test_users
+       users = graphql_request(admin)
+       users.size.should eq 2
+     end
 
-  it "user can see only self" do
-    admin, user = make_test_users
-    users = graphql_request(user)
-    users.size.should eq 1
-    users.first["email"].should eq "user@example.com"
-  end
-end
+     it "user can see only self" do
+       admin, user = make_test_users
+       users = graphql_request(user)
+       users.size.should eq 1
+       users.first["email"].should eq "user@example.com"
+     end
+   end
 
-private def make_test_users
-  admin = UserBox.create &.email("admin@example.com")
-  user = UserBox.create &.email("user@example.com")
-  {admin, user}
-end
+   private def make_test_users
+     admin = UserBox.create &.email("admin@example.com")
+     user = UserBox.create &.email("user@example.com")
+     {admin, user}
+   end
 
-# returns [{"email" => "user@foo_bar.business"}]
-private def graphql_request(user) : Array(JSON::Any)
-  client = HTTP::Client.new("foo_bar_hasura_test", 8080)
-  client.before_request do |request|
-    request.headers["Authorization"] = "Bearer #{UserToken.generate(user)}"
-  end
-  query = %({"query": "{ users { email } }"})
-  response = client.post("/v1/graphql", headers: HTTP::Headers{"Content-Type" => "application/json"}, body: query)
-  json = JSON.parse response.body
-  data = json["data"]?
-  data = data.should_not be_nil
-  data["users"].as_a
-end
-```
+   # returns [{"email" => "user@foo_bar.business"}]
+   private def graphql_request(user) : Array(JSON::Any)
+     client = HTTP::Client.new("foo_bar_hasura_test", 8080)
+     client.before_request do |request|
+       request.headers["Authorization"] = "Bearer #{UserToken.generate(user)}"
+     end
+     query = %({"query": "{ users { email } }"})
+     response = client.post("/v1/graphql", headers: HTTP::Headers{"Content-Type" => "application/json"}, body: query)
+     json = JSON.parse response.body
+     data = json["data"]?
+     data = data.should_not be_nil
+     data["users"].as_a
+   end
+   ```
 
 5. While we're messing with tests, this file is basically harmless but not needed, so delete
 
-```
-rm spec/setup/setup_database.cr
-```
+   ```shell
+   rm spec/setup/setup_database.cr
+   ```
 
 6. Run `script/test` to prove tests work as expected.
 
-
-# Production Instructions
+## Production Instructions
 
 1. Provision a production server somewhere
 2. Provision two deploy tokens from Gitlab `Settings > CI/CD`. Name one `gitlab-deploy-token` and login with it from production
 
-        docker login registry.gitlab.com -u gitlab+deploy-token-#####
-    
-    Name the other whatever you like and store it in `.profile`.
-        
-    ```
-    export GITLAB_USERNAME=gitlab+deploy-token-######
-    export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
-    ```
+   ```shell
+   docker login registry.gitlab.com -u gitlab+deploy-token-#####
+   ```
+
+   Name the other whatever you like and store it in `.profile`.
+
+   ```shell
+   export GITLAB_USERNAME=gitlab+deploy-token-######
+   export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
+   ```
 
 3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
-```
-export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
-export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
-export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
-export POSTGRES_DB=foo_bar_production
-export APP_DOMAIN=foobar.business
-export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
-export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
-```
+   ```shell
+   export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
+   export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
+   export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
+   export POSTGRES_DB=foo_bar_production
+   export APP_DOMAIN=foobar.business
+   export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
+   export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
+   ```
 
-3. Put Docker in swarm mode on production server (use your server's IP here not mine!)
+4. Put Docker in swarm mode on production server (use your server's IP here not mine!)
 
-```
-docker swarm init --advertise-addr 104.248.51.205
-```
+   ```shell
+   docker swarm init --advertise-addr 104.248.51.205
+   ```
 
-4. Add the following directory on the production server. This is where your database volume will live
+5. Add the following directory on the production server. This is where your database volume will live
 
-```
-mkdir -p /home/docker/data
-```
+   ```shell
+   mkdir -p /home/docker/data
+   ```
 
-5. Last step on production, change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
+6. Last step on production, change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
-### Meanwhile, back in your git repo
+7. **Meanwhile, back in your git repo**
+   Add the `version` route for healthchecks
 
-6. Add the `version` route for healthchecks
+   ```shell
+   up ssh # ssh's into the lucky container
+   # in container
+   lucky gen.model Version
+   ```
 
-```
-up ssh # ssh's into the lucky container
-# in container
-lucky gen.model Version
-```
+8. Add a table by replacing the contents of `src/models/version.cr` with:
 
-5. Add a table by replacing the contents of `src/models/version.cr` with:
+   ```crystal
+   class Version < BaseModel
+     table :versions do
+       column value : String
+     end
+   end
+   ```
 
-```crystal
-class Version < BaseModel
-  table :versions do
-    column value : String
-  end
-end
-```
+9. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
-6. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+   ```crystal
+   class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
+     def migrate
+       # Learn about migrations at: https://luckyframework.org/guides/database/migrations
+       create table_for(Version) do
+         primary_key id : Int64
+         add_timestamps
+         add value : String # <<< LIKE THIS
+       end
+     end
 
-```crystal
-class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
-  def migrate
-    # Learn about migrations at: https://luckyframework.org/guides/database/migrations
-    create table_for(Version) do
-      primary_key id : Int64
-      add_timestamps
-      add value : String # <<< LIKE THIS
+     def rollback
+       drop table_for(Version)
+     end
+   end
+   ```
+
+10. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+
+    ```crystal
+    class Version::Get < ApiAction
+      include Api::Auth::SkipRequireAuthToken
+      get "/version" do
+        last_version = VersionQuery.last?
+        if last_version
+          json({version: last_version.value})
+        else
+          json({error: "Unable to reach database"}, 503)
+        end
+      end
     end
-  end
+    ```
 
-  def rollback
-    drop table_for(Version)
-  end
-end
-```
+11. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
-7. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
-
-```crystal
-class Version::Get < ApiAction
-  include Api::Auth::SkipRequireAuthToken
-  get "/version" do
+    ```crystal
+    current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
+    current_version = "pre-first-commit" unless $?.success?
     last_version = VersionQuery.last?
-    if last_version
-      json({version: last_version.value})
-    else
-      json({error: "Unable to reach database"}, 503)
-    end
-  end
-end
-```
+    version_is_same = last_version && last_version == current_version
+    SaveVersion.create!(value: current_version) unless version_is_same
+    ```
 
-8. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+12. Migrate and test
 
-```crystal
-current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
-current_version = "pre-first-commit" unless $?.success?
-last_version = VersionQuery.last?
-version_is_same = last_version && last_version == current_version
-SaveVersion.create!(value: current_version) unless version_is_same
-```
+    ```shell
+    up ssh
+    # in container
+    lucky db.migrate && lucky db.create_required_seeds
+    exit
+    # back home
+    curl localhost:5000/version
+    ```
 
-9. Migrate and test
+13. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
 
-```
-up ssh
-# in container
-lucky db.migrate && lucky db.create_required_seeds
-exit
-# back home
-curl localhost:5000/version
-```
+    ```shell
+    ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
+    ```
 
-10. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
-
-```
-ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
-```
-
-# First push
+## First push
 
 1. No travis in this Gitlab project
 
-```
-rm .travis.yml
-```
+   ```shell
+   rm .travis.yml
+   ```
 
 2. First push is no deploy, just build and tag and test.
 
-```
-git add .
-git commit -m 'first commit [no-deploy]'
-git remote add origin <url>
-git push -u origin master
-```
+   ```shell
+   git add .
+   git commit -m 'first commit [no-deploy]'
+   git remote add origin <url>
+   git push -u origin master
+   ```
 
 3. On the production server clone the repo in the home folder of root.
 
-```
-ssh user@foo_bar_production_ip
-# On production server
-git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
-# git checkout staging if on staging server
-```
+   ```shell
+   ssh user@foo_bar_production_ip
+   # On production server
+   git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
+   # git checkout staging if on staging server
+   ```
 
 4. Back on local box, make a second commit
 
-```
-git commit -am 'second commit [deploy-only][sub-deploy]'
-git push
-```
+   ```shell
+   git commit -am 'second commit [deploy-only][sub-deploy]'
+   git push
+   ```
 
 5. After a minute or two you can go to `api.foobar.business/version` and see the version JSON served. Or post graphql queries to `https://api.foobar.business/v1/graphql`
 
-# Extras
+## Extras
 
-## Monitoring with Swarmprom
-
+### Monitoring with Swarmprom
 
 1. Add some env vars (generate your own: `HASHED_PASSWORD` comes from `openssl passwd -apr1 $ADMIN_PASSWORD`)
 
-```
-export ADMIN_USER=foo_bar_admin
-export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
-export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
-export SLACK_URL=https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX
-export SLACK_CHANNEL=lhd-demo
-export SLACK_USER=Prometheus
-```
+   ```shell
+   export ADMIN_USER=foo_bar_admin
+   export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
+   export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
+   export SLACK_URL=https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX
+   export SLACK_CHANNEL=lhd-demo
+   export SLACK_USER=Prometheus
+   ```
 
 2. Start the swarm
 
-```
-cd ~/foo_bar/Docker/prometheus-swarm
-docker stack deploy -c docker-compose.yml prometheus_swarm
-```
+   ```shell
+   cd ~/foo_bar/Docker/prometheus-swarm
+   docker stack deploy -c docker-compose.yml prometheus_swarm
+   ```
 
 3. Log in and play around, visit `grafana.foobar.business`.
-
-## Spin up production docker swarm locally
-

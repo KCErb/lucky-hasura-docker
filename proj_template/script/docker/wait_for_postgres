@@ -16,7 +16,7 @@ if [ -z ${POSTGRES_DB+x} ]; then
   >&2 echo "POSTGRES_DB var is not set, defaulting to no db arg"
 fi
 
-until PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -h $POSTGRES_HOST -c '\q' $POSTGRES_DB; do
+until PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -h $POSTGRES_HOST -c '\q' "$POSTGRES_DB"; do
   >&2 echo "Postgres is unavailable - sleeping"
   sleep 1
 done

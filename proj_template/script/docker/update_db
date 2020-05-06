@@ -12,10 +12,14 @@ while getopts 's' flag; do
   esac
 done
 
-source "${BASH_SOURCE%/*}/../functions/commons"
+function indent {
+  while read -r LINE; do
+    echo "  $LINE" || true
+  done
+}
 
 printf "\n▸ Migrating once postgres is up\n"
-/data/script/docker/wait-for-postgres
+/data/script/docker/wait_for_postgres
 
 DB_NAME="${LUCKY_ENV:-development}"
 
