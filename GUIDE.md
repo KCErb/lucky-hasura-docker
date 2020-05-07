@@ -443,7 +443,7 @@ The first thing you'll notice in the `deploy` script is that it relies on a smal
 
 ```shell
 export POSTGRES_USER='postgres_admin_foo_bar'
-export POSTGRES_PASSWORD='JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5'
+export POSTGRES_PASSWORD='JHMlT3pVyPd4xezsrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5'
 export HASURA_GRAPHQL_ADMIN_SECRET='6wPHux5JHMlT3pVyPd4xezAsrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO'
 export POSTGRES_DB='foo_bar_production'
 export APP_DOMAIN='foobar.business'

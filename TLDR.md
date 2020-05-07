@@ -157,8 +157,8 @@
 
    ```shell
    export POSTGRES_USER=postgres_admin_foo_bar
-   export POSTGRES_PASSWORD=JHMlT3pVyPdxezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3fOA1InElfTL5
-   export HASURA_GRAPHQL_ADMIN_SECRET=6wPux5JHMlT3pVyPd4xezAssrMalJKaU6wPHuPjkq1fvjfZl3BfO
+   export POSTGRES_PASSWORD=JHMlT3pVyPdxesrMVlJKaU6wPHuximcPjkq1fvjfZfOA1InElfTL5
+   export HASURA_GRAPHQL_ADMIN_SECRET=6wPux5JHMlT3pVyPd4xezsrMalJKaU6wPHuPjkq1fvjfZl3BfO
    export POSTGRES_DB=foo_bar_production
    export APP_DOMAIN=foobar.business
    export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
