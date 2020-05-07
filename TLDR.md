@@ -141,7 +141,7 @@
 
 1. Provision a production server somewhere.
 
-2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both read scopes, and export the username and token as in the next step.
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both read scopes, and save the username and token for the next step.
 
 3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`.
 
