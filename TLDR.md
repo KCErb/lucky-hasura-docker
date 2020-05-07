@@ -167,13 +167,15 @@
    docker swarm init --advertise-addr 104.248.51.205
    ```
 
-6. Add the following directory on the production server. This is where your database volume will live
+6. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the name `PRODUCTION_SERVER_IP`.
+
+7. Add the following directory on the production server. This is where your database volume will live
 
    ```shell
    mkdir -p /home/docker/data
    ```
 
-7. **Meanwhile, back in your git repo**
+8. **Meanwhile, back in your git repo**
    Add the `version` route for health checks
 
    ```shell
@@ -182,7 +184,7 @@
    lucky gen.model Version
    ```
 
-8. Add a table by replacing the contents of `src/models/version.cr` with:
+9. Add a table by replacing the contents of `src/models/version.cr` with:
 
    ```crystal
    class Version < BaseModel
@@ -192,7 +194,7 @@
    end
    ```
 
-9. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+10. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
    ```crystal
    class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
@@ -211,7 +213,7 @@
    end
    ```
 
-10. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+11. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
     ```crystal
     class Version::Get < ApiAction
@@ -227,7 +229,7 @@
     end
     ```
 
-11. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+12. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
     ```crystal
     current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
@@ -237,7 +239,7 @@
     SaveVersion.create!(value: current_version) unless version_is_same
     ```
 
-12. Migrate and test
+13. Migrate and test
 
     ```shell
     up ssh
@@ -248,7 +250,7 @@
     curl localhost:5000/version
     ```
 
-13. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
+14. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
 
     ```shell
     ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
