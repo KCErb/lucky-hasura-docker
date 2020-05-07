@@ -413,7 +413,7 @@ Next, I recommend:
     3. In your Docker-enabled server, we next want to log in to Docker with the username and password you just got.
 
         ```shell
-        docker login registry.gitlab.com -u gitlab+deploy-token-#####
+        docker login registry.gitlab.com -u $GITLAB_USERNAME
         ```
 
         You'll get a warning that credentials are stored insecurely. We'll be putting other production credentials here as env variables, so it is assumed that the production server contains sensitive information. I'm open to a better system, but remember that for automatic deployments to work, things have to be passwordless or Gitlab has to hold the password/secret and hand it over during CD.

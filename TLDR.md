@@ -155,10 +155,14 @@
 
 3. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
-4. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever you like and log in with it.
+4. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever you like, give it at least both read scopes, export it and log in with it.
 
    ```shell
-   docker login registry.gitlab.com -u gitlab+deploy-token-#####
+   # in .profile
+   export GITLAB_USERNAME=gitlab+deploy-token-######
+   export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
+   # in the shell
+   docker login registry.gitlab.com -u $GITLAB_USERNAME
    ```
 
 5. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
@@ -284,7 +288,7 @@
    ```shell
    ssh user@foo_bar_production_ip
    # On production server
-   git clone https://gitlab.com/KCErb/foo_bar.git
+   git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
    # git checkout `staging` if on staging server
    ```
 
