@@ -140,7 +140,7 @@
 ## Production Instructions
 
 1. Provision a production server somewhere
-2. Provision two deploy tokens from Gitlab `Settings > CI/CD`. Name one `gitlab-deploy-token` and log in with it from production
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token` and log in with it from production
 
    ```shell
    docker login registry.gitlab.com -u gitlab+deploy-token-#####
@@ -156,28 +156,28 @@
 3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
    ```shell
-   export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
-   export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
-   export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
+   export POSTGRES_USER=postgres_admin_foobar
+   export POSTGRES_PASSWORD=JHMlT3pVyPdxezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3fOA1InElfTL5
+   export HASURA_GRAPHQL_ADMIN_SECRET=6wPux5JHMlT3pVyPd4xezAssrMalJKaU6wPHuPjkq1fvjfZl3BfO
    export POSTGRES_DB=foo_bar_production
    export APP_DOMAIN=foobar.business
    export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
-   export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
+   export SECRET_KEY_BASE=z8PNM2T3pVkLCa5pIMarEQBRhuKaU6waHL1Aw=
    ```
 
-4. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
+4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
+
+5. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
 
    ```shell
    docker swarm init --advertise-addr 104.248.51.205
    ```
 
-5. Add the following directory on the production server. This is where your database volume will live
+6. Add the following directory on the production server. This is where your database volume will live
 
    ```shell
    mkdir -p /home/docker/data
    ```
-
-6. Last step on production, change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
 7. **Meanwhile, back in your git repo**
    Add the `version` route for health checks
