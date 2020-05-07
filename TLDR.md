@@ -196,8 +196,8 @@
 
 10. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
-   ```crystal
-   class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
+    ```crystal
+    class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
      def migrate
        # Learn about migrations at: https://luckyframework.org/guides/database/migrations
        create table_for(Version) do
@@ -210,8 +210,8 @@
      def rollback
        drop table_for(Version)
      end
-   end
-   ```
+    end
+    ```
 
 11. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
@@ -278,7 +278,7 @@
    ```shell
    ssh user@foo_bar_production_ip
    # On production server
-   git clone https://$GITLAB_USERNAME:$GITLAB_TOKEN@gitlab.com/KCErb/foo_bar.git
+   git clone https://gitlab.com/KCErb/foo_bar.git
    # git checkout staging if on staging server
    ```
 
