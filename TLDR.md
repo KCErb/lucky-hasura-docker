@@ -141,7 +141,17 @@
 
 1. Provision a production server somewhere.
 
-2. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever you like, give it at least both read scopes, export it and log in with it.
+
+   ```shell
+   # in .profile
+   export GITLAB_USERNAME=gitlab+deploy-token-######
+   export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
+   # in the shell
+   docker login registry.gitlab.com -u $GITLAB_USERNAME
+   ```
+
+3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
    ```shell
    export POSTGRES_USER='postgres_admin_foo_bar'
@@ -153,17 +163,7 @@
    export SECRET_KEY_BASE='z8PNM2T3pVkLCa5pIMarEQBRhuKaU6waHL1Aw='
    ```
 
-3. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
-
-4. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever you like, give it at least both read scopes, export it and log in with it.
-
-   ```shell
-   # in .profile
-   export GITLAB_USERNAME=gitlab+deploy-token-######
-   export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
-   # in the shell
-   docker login registry.gitlab.com -u $GITLAB_USERNAME
-   ```
+4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
 5. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
 
