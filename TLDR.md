@@ -250,10 +250,16 @@
     curl localhost:5000/version
     ```
 
-14. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY` and public key to server `~/.ssh/authorized_keys`
+14. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY`
 
     ```shell
     ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
+    ```
+
+15. Store the private key as a variable on Gitlab `GITLAB_PRODUCTION_KEY`. Copy the public key to the server
+
+    ```shell
+    ssh-copy-id -i ~/.ssh/gitlab-ci admin@foobar.business
     ```
 
 ## First push
