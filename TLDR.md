@@ -257,7 +257,7 @@
 14. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY`
 
     ```shell
-    ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production”
+    ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production” -f ~/.ssh/gitlab-ci
     ```
 
 15. Store the private key as a variable on Gitlab `GITLAB_PRODUCTION_KEY`. Copy the public key to the server
