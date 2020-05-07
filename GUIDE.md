@@ -442,18 +442,18 @@ The final CI stage is deployment. That stage basically runs `script/deploy` on p
 The first thing you'll notice in the `deploy` script is that it relies on a small pile of environment variables. The expectation is that this script is run in a production server where these vars are set. But sometimes we need to test our production setup locally, so the script provides some dummy values. Let's go ahead and add the real environment variables to our production server now. The following are the first few environment variables from an example `~/.profile` (we'll do 6 more when we set up the monitoring tools).
 
 ```shell
-export POSTGRES_USER=5JHMOA1JBfElT3pVyPd4AssrMKaU6wkq1fvuximxezcPjkqfZl3VlfTL
-export POSTGRES_PASSWORD=JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5
-export HASURA_GRAPHQL_ADMIN_SECRET=6wPHux5JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO
-export POSTGRES_DB=foo_bar_production
-export APP_DOMAIN=foobar.business
-export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
-export SECRET_KEY_BASE=z8PNM2T3pVkLCa5/IMFrEQBRhuKaU6waHL1Aw=
+export POSTGRES_USER='postgres_admin_foo_bar'
+export POSTGRES_PASSWORD='JHMlT3pVyPd4xezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3BfOA1InElfTL5'
+export HASURA_GRAPHQL_ADMIN_SECRET='6wPHux5JHMlT3pVyPd4xezAsrMVlJKaU6wPHuximcPjkq1fvjfZl3BfO'
+export POSTGRES_DB='foo_bar_production'
+export APP_DOMAIN='foobar.business'
+export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
+export SECRET_KEY_BASE='kixjMPcCNqJOXr2PSkfny/mTTBWpVWLqPcgjFLrL5Mc='
 ```
 
-You can fill in the first three entries above with randomly generated strings (not too long, some of these services have limits, so 63 chars or less should be safe, also, careful with special characters, you might want to check Postgres and Hasura docs if you'd like to use special chars).  The next three are more or less up to you. The Postgres DB name will be something you actually use so make it easy to type/read. `APP_DOMAIN` is the domain of the app that you registered in the Cloudflare step, it used by Traefik and Lucky. `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: [luckyframework.org/guides/deploying/heroku#quickstart](https://luckyframework.org/guides/deploying/heroku#quickstart). You'll have to go sign up with them and generate an API key. And finally, the `SECRET_KEY_BASE` comes from `lucky gen.secret_key`. You should probably run that command in the Docker container, otherwise, you'll have to `shards install` locally which isn't so bad but kinda defeats the point.
+You can fill in the first three entries above with randomly generated strings. Here's [a nice little post](https://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/) with some ways of doing that. Note that if your string is too long (<64 chars is probably safe) or if it has certain characters in it, it might get rejected. If you want to use special characters, you should check Postgres and Hasura docs.
 
-Please note in the above that the special characters given to me by `sendgrid` and `lucky gen.secret_key` didn't need escaping in my shell (bash). In particular, the last entry has special quoting to get that `SECRET_KEY_BASE` interpolated into JSON. I can't guarantee that in your shell the same will be true or what is the best strategy for escaping special characters. Depends on the shell and the characters! After doing this step, you might want to just run through the vars in the shell and make sure they look right.
+The next three are more or less up to you. The Postgres DB name will be something you actually use so make it easy to type/read. `APP_DOMAIN` is the domain of the app that you registered in the Cloudflare step, it used by Traefik and Lucky. `SEND_GRID_KEY` comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: [luckyframework.org/guides/deploying/heroku#quickstart](https://luckyframework.org/guides/deploying/heroku#quickstart). You'll have to go sign up with them and generate an API key. And finally, the `SECRET_KEY_BASE` comes from `lucky gen.secret_key`. You should probably run that command in the Docker container, otherwise, you'll have to `shards install` locally which isn't so bad but kinda defeats the point.
 
 `script/deploy` by default runs in 'additive deploy' mode but we can pass a `-s` flag to use 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
@@ -677,12 +677,12 @@ Do give that a read (starting at the Traefik heading perhaps), at least you'll s
 Before we can start that Swarm stack, Swarmprom needs some env vars on your production server:
 
 ```shell
-export ADMIN_USER=foo_bar_admin
-export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
+export ADMIN_USER='foo_bar_admin'
+export ADMIN_PASSWORD='QIgvfT8folMq1Myvqq53kT3'
 export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
-export SLACK_URL=https://hooks.slack.com/services/A61J43A7/AK9I23U17/qaGCB6TKZVF1HRng0WqTEaeX
-export SLACK_CHANNEL=lhd-demo
-export SLACK_USER=Prometheus
+export SLACK_URL='https://hooks.slack.com/services/A61J43A7/AK9I23U17/qaGCB6TKZVF1HRng0WqTEaeX'
+export SLACK_CHANNEL='lhd-demo'
+export SLACK_USER='Prometheus'
 ```
 
 The next two you can choose, again you should generate something randomly for the `ADMIN_PASSWORD` but then we need the hashed password in a different spot. We can generate the hash that traefik wants like so
@@ -690,8 +690,6 @@ The next two you can choose, again you should generate something randomly for th
 ```shell
 openssl passwd -apr1 QIgvfT8folMq1Myvqq53kT3
 ```
-
-Be careful that if this contains certain characters, some shells will not be happy with simply double-quoting the string!
 
 The SLACK ones you can skip for now. In the Grafana dashboard, you can add them with their nice interface. Including them in the env like this just sets up a place for all alerts to automatically go. In either case, you'll need to make an incoming webhook: ([slack.com/intl/en-ca/help/articles/115005265063-Incoming-Webhooks-for-Slack](https://slack.com/intl/en-ca/help/articles/115005265063-Incoming-Webhooks-for-Slack)).
 

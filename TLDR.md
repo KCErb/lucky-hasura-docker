@@ -140,7 +140,7 @@
 ## Production Instructions
 
 1. Provision a production server somewhere
-2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token` and log in with it from production
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever
 
    ```shell
    docker login registry.gitlab.com -u gitlab+deploy-token-#####
@@ -156,7 +156,7 @@
 3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
    ```shell
-   export POSTGRES_USER=postgres_admin_foobar
+   export POSTGRES_USER=postgres_admin_foo_bar
    export POSTGRES_PASSWORD=JHMlT3pVyPdxezAssrMVlJKaU6wPHuximcPjkq1fvjfZl3fOA1InElfTL5
    export HASURA_GRAPHQL_ADMIN_SECRET=6wPux5JHMlT3pVyPd4xezAssrMalJKaU6wPHuPjkq1fvjfZl3BfO
    export POSTGRES_DB=foo_bar_production
