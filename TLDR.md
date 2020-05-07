@@ -279,7 +279,7 @@
    ssh user@foo_bar_production_ip
    # On production server
    git clone https://gitlab.com/KCErb/foo_bar.git
-   # git checkout staging if on staging server
+   # git checkout `staging` if on staging server
    ```
 
 4. Back on your local box, make a second commit
