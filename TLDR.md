@@ -141,19 +141,13 @@
 
 1. Provision a production server somewhere.
 
-2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI. Name the other whatever you like, give it at least both read scopes, export it and log in with it.
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both read scopes, and export the username and token as in the next step.
+
+3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`.
 
    ```shell
-   # in .profile
-   export GITLAB_USERNAME=gitlab+deploy-token-######
-   export GITLAB_TOKEN=en3Z4e7GafxRp4i1Jx0
-   # in the shell
-   docker login registry.gitlab.com -u $GITLAB_USERNAME
-   ```
-
-3. Ensure you also have the following variables in your environment. After generating your own passwords, place them in `.profile`.
-
-   ```shell
+   export GITLAB_USERNAME='gitlab+deploy-token-123456'
+   export GITLAB_TOKEN='en3Z4e7GafxRp4i1Jx0'
    export POSTGRES_USER='postgres_admin_foo_bar'
    export POSTGRES_PASSWORD='JHMlT3pVyPdxesrMVlJKaU6wPHuximcPjkq1fvjfZfOA1InElfTL5'
    export HASURA_GRAPHQL_ADMIN_SECRET='6wPux5JHMlT3pVyPd4xezsrMalJKaU6wPHuPjkq1fvjfZl3BfO'
@@ -165,21 +159,27 @@
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
-5. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
+5. Login ...
+
+   ```shell
+   docker login registry.gitlab.com -u $GITLAB_USERNAME
+   ```
+
+6. Put Docker in swarm mode on the production server (use your server's IP here not mine!)
 
    ```shell
    docker swarm init --advertise-addr 104.248.51.205
    ```
 
-6. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the name `PRODUCTION_SERVER_IP`.
+7. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the name `PRODUCTION_SERVER_IP`.
 
-7. Add the following directory on the production server. This is where your database volume will live
+8. Add the following directory on the production server. This is where your database volume will live
 
    ```shell
    mkdir -p /home/docker/data
    ```
 
-8. **Meanwhile, back in your git repo**
+9. **Meanwhile, back in your git repo**
    Add the `version` route for health checks
 
    ```shell
@@ -188,7 +188,7 @@
    lucky gen.model Version
    ```
 
-9. Add a table by replacing the contents of `src/models/version.cr` with:
+10. Add a table by replacing the contents of `src/models/version.cr` with:
 
    ```crystal
    class Version < BaseModel
@@ -198,7 +198,7 @@
    end
    ```
 
-10. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
+11. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
     ```crystal
     class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
@@ -217,7 +217,7 @@
     end
     ```
 
-11. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+12. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
     ```crystal
     class Version::Get < ApiAction
@@ -233,7 +233,7 @@
     end
     ```
 
-12. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+13. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
     ```crystal
     current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
@@ -243,7 +243,7 @@
     SaveVersion.create!(value: current_version) unless version_is_same
     ```
 
-13. Migrate and test
+14. Migrate and test
 
     ```shell
     up ssh
@@ -254,13 +254,13 @@
     curl localhost:5000/version
     ```
 
-14. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY`
+15. Generate keypair. Add private key to CI `GITLAB_PRODUCTION_KEY`
 
     ```shell
     ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production” -f ~/.ssh/gitlab-ci
     ```
 
-15. Store the private key as a variable on Gitlab `GITLAB_PRODUCTION_KEY`. Copy the public key to the server
+16. Store the private key as a variable on Gitlab `GITLAB_PRODUCTION_KEY`. Copy the public key to the server
 
     ```shell
     ssh-copy-id -i ~/.ssh/gitlab-ci admin@foobar.business
