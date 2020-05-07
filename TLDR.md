@@ -151,7 +151,7 @@
    docker login registry.gitlab.com -u $GITLAB_USERNAME
    ```
 
-3. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
+3. Ensure you also have the following variables in your environment. After generating your own passwords, place them in `.profile`.
 
    ```shell
    export POSTGRES_USER='postgres_admin_foo_bar'
