@@ -114,7 +114,7 @@
      {admin, user}
    end
 
-   # returns [{"email" => "user@foobar.business"}]
+   # returns [{"email" => "user@example.com"}]
    private def graphql_request(user) : Array(JSON::Any)
      client = HTTP::Client.new("foo_bar_hasura_test", 8080)
      client.before_request do |request|
@@ -146,15 +146,15 @@
 3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`.
 
    ```shell
-   export GITLAB_USERNAME='gitlab+deploy-token-123456'
-   export GITLAB_TOKEN='en3Z4e7GafxRp4i1Jx0'
+   export GITLAB_USERNAME='gitlab+deploy-token-169963'
+   export GITLAB_TOKEN='b5eHpz9LKNms345hpFy_'
    export POSTGRES_USER='postgres_admin_foo_bar'
-   export POSTGRES_PASSWORD='JHMlT3pVyPdxesrMVlJKaU6wPHuximcPjkq1fvjfZfOA1InElfTL5'
-   export HASURA_GRAPHQL_ADMIN_SECRET='6wPux5JHMlT3pVyPd4xezsrMalJKaU6wPHuPjkq1fvjfZl3BfO'
+   export POSTGRES_PASSWORD='iADLEg68BPIbqdIojrcUPWt27QNkJx0cJpFFW+58CEA='
+   export HASURA_GRAPHQL_ADMIN_SECRET='y8RPYgOV0dxIPs9ZVXjSKqbL+ym7t7D8X0cVr6n2eEg='
    export POSTGRES_DB='foo_bar_production'
    export APP_DOMAIN='foobar.business'
    export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
-   export SECRET_KEY_BASE='z8PNM2T3pVkLCa5pIMarEQBRhuKaU6waHL1Aw='
+   export SECRET_KEY_BASE='/Vz3c5aFTrs+XBJlrj+luiYls3bC3+5hW/W0YrPnIu4='
    ```
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
