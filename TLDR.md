@@ -144,13 +144,13 @@
 2. Ensure you also have the following variables in your environment. You'll have to generate them yourself. You can place them in `.profile`.
 
    ```shell
-   export POSTGRES_USER=postgres_admin_foo_bar
-   export POSTGRES_PASSWORD=JHMlT3pVyPdxesrMVlJKaU6wPHuximcPjkq1fvjfZfOA1InElfTL5
-   export HASURA_GRAPHQL_ADMIN_SECRET=6wPux5JHMlT3pVyPd4xezsrMalJKaU6wPHuPjkq1fvjfZl3BfO
-   export POSTGRES_DB=foo_bar_production
-   export APP_DOMAIN=foobar.business
-   export SEND_GRID_KEY=SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q
-   export SECRET_KEY_BASE=z8PNM2T3pVkLCa5pIMarEQBRhuKaU6waHL1Aw=
+   export POSTGRES_USER='postgres_admin_foo_bar'
+   export POSTGRES_PASSWORD='JHMlT3pVyPdxesrMVlJKaU6wPHuximcPjkq1fvjfZfOA1InElfTL5'
+   export HASURA_GRAPHQL_ADMIN_SECRET='6wPux5JHMlT3pVyPd4xezsrMalJKaU6wPHuPjkq1fvjfZl3BfO'
+   export POSTGRES_DB='foo_bar_production'
+   export APP_DOMAIN='foobar.business'
+   export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
+   export SECRET_KEY_BASE='z8PNM2T3pVkLCa5pIMarEQBRhuKaU6waHL1Aw='
    ```
 
 3. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
@@ -296,12 +296,12 @@
 1. Add some env vars (generate your own: `HASHED_PASSWORD` comes from `openssl passwd -apr1 $ADMIN_PASSWORD`)
 
    ```shell
-   export ADMIN_USER=foo_bar_admin
-   export ADMIN_PASSWORD=QIgvfT8folMq1Myvqq53kT3
+   export ADMIN_USER='foo_bar_admin'
+   export ADMIN_PASSWORD='QIgvfT8folMq1Myvqq53kT3'
    export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
-   export SLACK_URL=https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX
-   export SLACK_CHANNEL=lhd-demo
-   export SLACK_USER=Prometheus
+   export SLACK_URL='https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX'
+   export SLACK_CHANNEL='lhd-demo'
+   export SLACK_USER='Prometheus'
    ```
 
 2. Start the swarm
