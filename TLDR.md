@@ -190,13 +190,13 @@
 
 10. Add a table by replacing the contents of `src/models/version.cr` with:
 
-   ```crystal
-   class Version < BaseModel
+    ```crystal
+    class Version < BaseModel
      table :versions do
        column value : String
      end
-   end
-   ```
+    end
+    ```
 
 11. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
