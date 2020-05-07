@@ -24,7 +24,7 @@ done
 
 ARG=$@
 TYPE="${ARG:-add}"
-export LUCKY_TAG=`git rev-parse --short=8 HEAD`
+export LUCKY_TAG=`git rev-parse --abbrev-ref HEAD` # use branch name
 
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to update the db first.
