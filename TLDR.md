@@ -296,7 +296,7 @@
    # git checkout `staging` if on staging server
    ```
 
-4. Back on your local box, make a second commit
+4. Back on your local box, make a second commit (after some dummy change)
 
    ```shell
    git commit -am 'second commit [deploy-only][sub-deploy]'
