@@ -312,7 +312,7 @@
 1. Add some env vars (Slack alerts are optional)
 
    ```shell
-   export ADMIN_PASSWORD='QIgvfT8folMq1Myvqq53kT3'
+   export ADMIN_PASSWORD='password'
    export SLACK_URL='https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX'
    export SLACK_CHANNEL='lhd-demo'
    export SLACK_USER='Prometheus'
