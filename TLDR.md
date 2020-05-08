@@ -158,7 +158,7 @@
    export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
    export SECRET_KEY_BASE='/Vz3c5aFTrs+XBJlrj+luiYls3bC3+5hW/W0YrPnIu4='
    export ADMIN_USER='foo_bar_admin'
-   export HASHED_PASSWORD='$apr1$2dBsajf3$lJAoseC0bToLa5OpxK6PK1'
+   export HASHED_PASSWORD='$apr1$hkJGjKci$1uT4uFNahzYV2fMu9z0gX0'
    ```
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
