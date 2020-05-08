@@ -140,21 +140,25 @@
 ## Production Instructions
 
 1. Provision a production server somewhere.
+   * Ensure that ports 80 and 443 are available to the public.
+   * Ensure that you have `/etc/certs/cloudflare.cert` and `/etc/certs/cloudflare.key` copied or that you have updated the traefik config for your SSL strategy.
 
 2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both read scopes, and save the username and token for the next step.
 
-3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`.
+3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`. `HASHED_PASSWORD` comes from `openssl passwd -apr1 admin-password-here`. POSTGRES vars will be passed by URL so no non-URL chars.
 
    ```shell
    export GITLAB_USERNAME='gitlab+deploy-token-169963'
    export GITLAB_TOKEN='b5eHpz9LKNms345hpFy_'
    export POSTGRES_USER='postgres_admin_foo_bar'
-   export POSTGRES_PASSWORD='iADLEg68BPIbqdIojrcUPWt27QNkJx0cJpFFW+58CEA='
+   export POSTGRES_PASSWORD='iADLEg68BPIbqdIojrcUPWt27QNkJx0cJpFFW.58CEA.'
    export HASURA_GRAPHQL_ADMIN_SECRET='y8RPYgOV0dxIPs9ZVXjSKqbL+ym7t7D8X0cVr6n2eEg='
    export POSTGRES_DB='foo_bar_production'
    export APP_DOMAIN='foobar.business'
    export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
    export SECRET_KEY_BASE='/Vz3c5aFTrs+XBJlrj+luiYls3bC3+5hW/W0YrPnIu4='
+   export ADMIN_USER='foo_bar_admin'
+   export HASHED_PASSWORD='$apr1$2dBsajf3$lJAoseC0bToLa5OpxK6PK1'
    ```
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
@@ -305,12 +309,10 @@
 
 ### Monitoring with Swarmprom
 
-1. Add some env vars (generate your own: `HASHED_PASSWORD` comes from `openssl passwd -apr1 $ADMIN_PASSWORD`)
+1. Add some env vars (Slack alerts are optional)
 
    ```shell
-   export ADMIN_USER='foo_bar_admin'
    export ADMIN_PASSWORD='QIgvfT8folMq1Myvqq53kT3'
-   export HASHED_PASSWORD='$apr1$Vz7vV1p3$Ip0GEN62ah094Ehp2PFaq.'
    export SLACK_URL='https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX'
    export SLACK_CHANNEL='lhd-demo'
    export SLACK_USER='Prometheus'
