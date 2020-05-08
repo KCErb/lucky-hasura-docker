@@ -163,9 +163,10 @@
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
 
-5. Login ...
+5. Login to Docker registry with new username and token:
 
    ```shell
+   source ~/.profile
    docker login registry.gitlab.com -u $GITLAB_USERNAME
    ```
 
