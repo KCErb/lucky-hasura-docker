@@ -1,6 +1,6 @@
 # Lucky Hasura Docker
 
-The goal of this project is to provide fantastic backend boilerplate using Lucky, Hasura, and Docker. The problem I wanted to solve can be demonstrated by a quick image search for [backend vs frontend joke](google.com/search?q=backend+vs+frontend+joke).
+The goal of this project is to provide fantastic backend boilerplate using Lucky, Hasura, and Docker. The problem I wanted to solve can be demonstrated by a quick image search for [backend vs frontend joke](https://google.com/search?q=backend+vs+frontend+joke).
 
 The basic idea is that you'll have a Postgres database which you can talk to in one of two ways. If you post GraphQL queries to `api.example.com/v1/graphql` then [Hasura](https://hasura.io/) will handle the request. If you make any other request to `api.example.com` then [Lucky](https://luckyframework.org/) will handle the request. Thus Hasura is responsible for GraphQL, and Lucky is responsible for business logic and managing your database as it will be responsible for the object model. Of course, that's just one way to configure it. Since we're using [Traefik](https://containo.us/traefik/) to handle the reverse proxy, it's pretty easy to route any shape of request to any server we like.
 
