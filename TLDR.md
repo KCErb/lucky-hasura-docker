@@ -1,4 +1,8 @@
-# Basic Up and Going
+# TL;DR
+
+The guide is quite long! If you want to just get a proof of concept running go ahead with these instructions. **User beware** - these instructions are for a proof of concept. The guide more fully explains some of the security implications of leaving this all in its default state.
+
+## Basic Up and Going
 
 1. Make sure you have `docker`, `lucky`, `ruby`, and `up`.
 2. Do the following
@@ -148,17 +152,17 @@
 3. Ensure you have the following variables in your environment. After generating your own passwords, place them in `.profile`. `HASHED_PASSWORD` comes from `openssl passwd -apr1 admin-password-here`. POSTGRES vars will be passed by URL so no non-URL chars.
 
    ```shell
-   export GITLAB_USERNAME='gitlab+deploy-token-169963'
-   export GITLAB_TOKEN='b5eHpz9LKNms345hpFy_'
+   export GITLAB_USERNAME='gitlab+deploy-token-170337'
+   export GITLAB_TOKEN='8yQesUWt4MaHJ8T4d6hc'
    export POSTGRES_USER='postgres_admin_foo_bar'
-   export POSTGRES_PASSWORD='iADLEg68BPIbqdIojrcUPWt27QNkJx0cJpFFW.58CEA.'
-   export HASURA_GRAPHQL_ADMIN_SECRET='y8RPYgOV0dxIPs9ZVXjSKqbL+ym7t7D8X0cVr6n2eEg='
+   export POSTGRES_PASSWORD='.WvxNITbPYDj51DvDZ.Hui9RQEhJ4JqdToGc9vI6Mqo.'
+   export HASURA_GRAPHQL_ADMIN_SECRET='eegSB09I0vV6QLd0UxKh9aP4gYACFY86cRIHvvvw0QA='
    export POSTGRES_DB='foo_bar_production'
    export APP_DOMAIN='foobar.business'
    export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
-   export SECRET_KEY_BASE='/Vz3c5aFTrs+XBJlrj+luiYls3bC3+5hW/W0YrPnIu4='
+   export SECRET_KEY_BASE='bnnRrtKsRH33hACzMAJTeR2gjDvUFrSf/5d2AJP4nuk='
    export ADMIN_USER='foo_bar_admin'
-   export HASHED_PASSWORD='$apr1$hkJGjKci$1uT4uFNahzYV2fMu9z0gX0'
+   export HASHED_PASSWORD='$apr1$1kCmJpFj$lBE91qDWqRrcdSuxCdTpx1'
    ```
 
 4. Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n`.
