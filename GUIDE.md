@@ -244,7 +244,7 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 
 And you can paste the token into your favorite JWT parser ([jwt.io](https://jwt.io) is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the `Bearer` token in the other and they even have a `graphql` mode that just lets you paste GraphQL in. Pretty spiffy.
 
-![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/0.1.0/img/insomnia-chain.jpg)
+![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/insomnia-chain.jpg)
 
 Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to [localhost:8080/v1/graphql](http://localhost:8080/v1/graphql) using the token you got from your admin sign in.
 
@@ -291,7 +291,7 @@ Now, if you try that with the token you get from signing in as `buzz` you'll get
 
 That's because Hasura doesn't know about our `user` role and that it should at least be able to see its own email. Let's go to the dashboard and add that, again I'd rather leave the details to the Hasura docs, but here's a screenshot of the permissions I set to help you get off on the right foot:
 
-![hasura permissions screen](https://github.com/KCErb/lucky-hasura-docker/blob/0.1.0/img/user-permissions.jpg)
+![hasura permissions screen](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/user-permissions.jpg)
 
 I just entered a new role called 'users' and edited the 'select' permission to allow a user to query their own email. Now the response is
 
@@ -426,7 +426,7 @@ Next, we can do our DNS and security certificates through Cloudflare (for free).
 
 1. Setup some special CNAME's on the DNS page for various Docker services which we'll be setting up: `api`, `traefik`, and `grafana` is a good enough start.
 
-    ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/0.1.0/img/cloudflare-dns.jpg)
+    ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/cloudflare-dns.jpg)
 
 2. Use the "Full (Strict)" encryption mode, don't use automatic `http => https`, and don't use HSTS enforcement, otherwise you'll get into a redirect loop (we'll be using an origin certificate and Traefik will handle that enforcement/redirect).
 
@@ -437,7 +437,7 @@ Next, we can do our DNS and security certificates through Cloudflare (for free).
     etc/certs/cloudflare.key
     ```
 
-    ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/0.1.0/img/cloudflare-origin-certs.jpg)
+    ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/cloudflare-origin-certs.jpg)
 
 **Note**: Traefik will not start if these two files are not available. If you have a different SSL plan, be sure to update the config accordingly
 
@@ -720,7 +720,7 @@ I feel like I should write more since there's a bunch going on under the hood he
 
 Take note! Putting all of the above on one $5 box on Digital Ocean uses 80% of the RAM. I would recommend leaving off the monitoring tools while developing and then once the big release day comes upgrading a few bucks a month or putting your monitoring tools on a different box (that box just has to join the swarm, your local box could join the swarm for example).
 
-![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/0.1.0/img/grafana-dashboard.jpg)
+![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/grafana-dashboard.jpg)
 
 ## Conclusion
 
