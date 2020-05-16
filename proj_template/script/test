@@ -16,7 +16,7 @@ if [ $# != 0 ]; then
   export POSTGRES_USER=postgres
   export POSTGRES_PASSWORD="" # Assumes local psql is already running in trust mode.
   export POSTGRES_DB=PROJECT_NAME_test
-  export SECRET_KEY_BASE="DEV_SECRET_KEY_BASE"
+  export SECRET_KEY_BASE=lucky_hasura_shared_secret
   export HASURA_GRAPHQL_ADMIN_SECRET=secret
   export LUCKY_TAG=$1
   export CI_SERVER=yes
@@ -32,7 +32,7 @@ start_lucky() {
   else
     docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml run -d -e DATABASE_URL=postgres://postgres:@postgres:5432/PROJECT_NAME_test -e LUCKY_ENV=test --name PROJECT_NAME_lucky_test -p 5001:5000 lucky tail -f /dev/null
   fi
-  docker exec -t PROJECT_NAME_lucky_test /data/script/docker/update_db
+  docker exec -t PROJECT_NAME_lucky_test /home/lucky/app/script/docker/update_db
 }
 
 start_hasura() {
@@ -43,7 +43,7 @@ start_hasura() {
   fi
 
   docker logs PROJECT_NAME_hasura_test
-  until docker exec -t PROJECT_NAME_lucky_test curl -s PROJECT_NAME_hasura_test:8080/healthz > /dev/null; do
+  until docker exec -t PROJECT_NAME_lucky_test wget --quiet --spider PROJECT_NAME_hasura_test:8080/healthz > /dev/null; do
     printf "    Hasura not ready - checking again in 5s\n"
     sleep 5
     docker logs --since 5s PROJECT_NAME_hasura_test
@@ -52,9 +52,6 @@ start_hasura() {
 }
 
 printf "\n▸ Initializing test environment.\n"
-if [ "$CI_SERVER" != "yes" ]; then
-  docker-sync start
-fi
 start_lucky
 
 printf "\n▸ Starting Hasura test container.\n"
@@ -65,7 +62,7 @@ if [ "$CI_SERVER" = "yes" ]; then
   docker exec -t PROJECT_NAME_lucky_test sh -c "crystal spec --order random"
 else
   printf "\nStarting bash session in PROJECT_NAME_lucky_test ...\n"
-  docker exec -it PROJECT_NAME_lucky_test /bin/bash
+  docker exec -it PROJECT_NAME_lucky_test /bin/sh
 fi
 
 printf "\n▸ Removing test containers.\n"

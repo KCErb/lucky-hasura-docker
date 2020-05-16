@@ -1,8 +1,13 @@
-FROM luckyhasuradocker/lucky-crystal:l0.21.1c0.34.0
+FROM luckyhasuradocker/lucky-crystal:l0.21.0c0.34.0-alpine
 
-RUN mkdir /data
-WORKDIR /data
-COPY shard.yml /data
+# Don't default to root
+RUN addgroup -g 1000 -S lucky && \
+    adduser -u 1000 -S lucky -G lucky
+USER lucky
+
+COPY --chown=lucky:lucky shard.yml /home/lucky/app/
+# RUN chown -R lucky:lucky /home/lucky/app
+WORKDIR /home/lucky/app
 
 # After this point the file differs from prod
 RUN shards install

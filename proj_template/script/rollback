@@ -20,29 +20,21 @@ shift $((OPTIND-1))
 OLD_VERSION=$1
 
 if [[ -z "$OLD_VERSION" ]]; then
-    echo "Error: Must provide version argument" 1>&2
-    exit 1
+  echo "Error: Must provide version argument" 1>&2
+  exit 1
 fi
-
-# Get timestamp of last migration in version we are rolling back to
-docker pull "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION"
-MIGRATION_TIMESTAMP=$(docker run --rm "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION" /data/script/docker/last_migration_timestamp)
-export MIGRATION_TIMESTAMP
 
 # export for update_code
 export LUCKY_TAG=$OLD_VERSION
 
-TYPE='add'
-while getopts 's' flag; do
-  case "${flag}" in
-    s) TYPE='subtract' ;;
-    *) ;;
-  esac
-done
-
 # rollback migration runs in current container to use newest code for rollback
 CURRENT_VERSION=$(git rev-parse --short=8 HEAD)
 export CURRENT_VERSION
+
+# Get timestamp of last migration in version we are rolling back to
+docker pull "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION"
+MIGRATION_TIMESTAMP=$(docker run --rm "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION" /fhome/lucky/app/script/docker/last_migration_timestamp)
+export MIGRATION_TIMESTAMP
 
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to remove that code before removing those db changes

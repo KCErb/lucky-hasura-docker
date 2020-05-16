@@ -4,7 +4,6 @@ docker_compose_command: docker-compose -f Docker/docker-compose.yml -f Docker/do
 
 # Automatically rebuild images when these files have changed.
 rebuild_when_changed:
-  - docker-sync.yml
   - shard.*
   - up.yml
   - Docker/lucky/Dockerfile

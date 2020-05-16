@@ -8,8 +8,7 @@ source "${BASH_SOURCE%/*}/functions/commons"
 check_for_up
 
 printf "\n▸ Initializing database (builds lucky if needed)\n"
-docker-sync start | indent
-up /data/script/docker/update_db -s
+up /home/lucky/app/script/docker/update_db -s
 
 printf "\n▸ Bringing containers up\n"
 up -d | indent

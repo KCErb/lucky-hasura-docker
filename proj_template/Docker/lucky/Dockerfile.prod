@@ -1,14 +1,17 @@
-FROM luckyhasuradocker/lucky-crystal:l0.21.1c0.34.0
+FROM luckyhasuradocker/lucky-crystal:l0.21.0c0.34.0-alpine
 
-RUN mkdir /data
-WORKDIR /data
-COPY shard.yml /data
+RUN addgroup -g 1000 -S lucky && \
+    adduser -u 1000 -S lucky -G lucky
+USER lucky
+
+COPY --chown=lucky:lucky shard.yml /home/lucky/app/
+WORKDIR /home/lucky/app
 
 # After this point the file differs from dev
 RUN shards install --production
-COPY . /data
+COPY --chown=lucky:lucky . /home/lucky/app
 RUN crystal build script/docker/lucky_healthcheck.cr -o script/docker/lucky_healthcheck
 RUN crystal build script/docker/last_migration_timestamp.cr -o script/docker/last_migration_timestamp
 RUN crystal build --release src/start_server.cr
 RUN crystal build tasks.cr -o tasks/run_task
-CMD ["/data/start_server"]
+CMD ["/home/lucky/app/start_server"]

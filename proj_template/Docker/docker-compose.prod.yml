@@ -6,7 +6,7 @@ services:
       - POSTGRES_USER
       - POSTGRES_DB
     volumes:
-    - /home/docker/data:/data
+    - ~/data:/var/lib/postgresql/data
   hasura:
     environment:
       POSTGRES_USER:

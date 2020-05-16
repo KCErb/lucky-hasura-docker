@@ -15,7 +15,7 @@ services:
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
       HASURA_GRAPHQL_ADMIN_SECRET: secret
-      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "DEV_SECRET_KEY_BASE"}'
+      HASURA_GRAPHQL_JWT_SECRET: '{"type": "HS256","key": "lucky_hasura_shared_secret"}'
     container_name: PROJECT_NAME_hasura
     tty: true
     restart: always
@@ -25,19 +25,18 @@ services:
       dockerfile: Docker/lucky/Dockerfile
     image: PROJECT_NAME_lucky:dev
     volumes:
-    - app-sync:/data:nocopy
-    - /data/bin/
-    - /data/lib/
-    - /data/.shards/
+    - ../:/home/lucky/app
+    # ignores the following in the volume
+    - /home/lucky/app/bin/
+    - /home/lucky/app/lib/
+    - /home/lucky/app/.shards/
     ports:
     - 5000:5000
     environment:
       DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
-      SHARDS_CACHE_PATH: /data/.shards
+      SHARDS_CACHE_PATH: /home/lucky/app/.shards
     tty: true
     container_name: PROJECT_NAME_lucky
 volumes:
-  app-sync:
-    external: true
   db-data:
     name: PROJECT_NAME_data

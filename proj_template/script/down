@@ -7,7 +7,6 @@ source "${BASH_SOURCE%/*}/functions/commons"
 
 printf "\n▸ Stopping and removing containers and networks\n"
 up down | indent
-docker-sync clean | indent
 
 printf "\n▸ Removing volumes\n"
 docker volume rm SWARM_NAME_data | indent

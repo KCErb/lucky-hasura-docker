@@ -1,7 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 # Exit if any subcommand fails
 set -e
-set -o pipefail
 
 # Seed DB?
 SEED_DB="false"
@@ -12,35 +11,35 @@ while getopts 's' flag; do
   esac
 done
 
-function indent {
+indent() {
   while read -r LINE; do
     echo "  $LINE" || true
   done
 }
 
 printf "\n▸ Migrating once postgres is up\n"
-/data/script/docker/wait_for_postgres
+/home/lucky/app/script/docker/wait_for_postgres
 
 DB_NAME="${LUCKY_ENV:-development}"
 
 printf "\n▸ Creating %s database.\n" "$DB_NAME"
-if [ "$LUCKY_ENV" == "production" ]; then
-  /data/tasks/run_task db.create | indent
+if [ "$LUCKY_ENV" = "production" ]; then
+  /home/lucky/app/tasks/run_task db.create | indent
 else
   lucky db.create | indent
 fi
 
 printf "\n▸ Migrating database.\n"
-if [ "$LUCKY_ENV" == "production" ]; then
-  /data/tasks/run_task db.migrate | indent
+if [ "$LUCKY_ENV" = "production" ]; then
+  /home/lucky/app/tasks/run_task db.migrate | indent
 else
   lucky db.migrate | indent
 fi
 
-if [ "$SEED_DB" == "true" ]; then
+if [ "$SEED_DB" = "true" ]; then
   printf "\n▸ Seeding database with required seeds\n"
-  if [ "$LUCKY_ENV" == "production" ]; then
-    /data/tasks/run_task db.create_required_seeds | indent
+  if [ "$LUCKY_ENV" = "production" ]; then
+    /home/lucky/app/tasks/run_task db.create_required_seeds | indent
   else
     lucky db.create_required_seeds | indent
     printf "\n▸ Seeding the database with sample seeds\n"

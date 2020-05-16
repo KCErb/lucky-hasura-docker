@@ -33,5 +33,6 @@ mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
-echo "running: script/deploy $DEPLOY_ARG"
-ssh -t root@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git pull && script/deploy $DEPLOY_ARG && docker system prune -af'"
+SSH_USER=lhd
+echo "running: script/deploy $DEPLOY_ARG $1 via ssh as user: $SSH_USER on IP $SERVER_IP."
+ssh -t "$SSH_USER@"$SERVER_IP" "bash --login -s < script/deploy $DEPLOY_ARG $1"

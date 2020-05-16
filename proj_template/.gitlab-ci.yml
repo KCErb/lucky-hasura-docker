@@ -14,7 +14,7 @@ variables:
   POSTGRES_USER: admin
   POSTGRES_PASSWORD: secret
   POSTGRES_DB: PROJECT_NAME_test
-  SECRET_KEY_BASE: DEV_SECRET_KEY_BASE
+  SECRET_KEY_BASE: lucky_hasura_shared_secret
   HASURA_GRAPHQL_ADMIN_SECRET: secret
   SEND_GRID_KEY: unused
   APP_DOMAIN: localhost
