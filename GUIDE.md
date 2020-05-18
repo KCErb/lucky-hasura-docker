@@ -95,7 +95,7 @@ echo '\nup.cache\n' >> foo_bar/.gitignore
 rsync -avr lucky-hasura-docker/proj_template/ foo_bar
 ```
 
-For the last change you'll need to make, now that the LHD and Lucky projects are together, take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation and `hasura` will need to know its value. You can either change it to `lucky_hasura_shared_secret` (the static default in this project) or you can update all instances of `lucky_hasura_shared_secret` with the value you find here. Either way it'll only run in development so you should be safe.
+For the last change you'll need to make, now that the LHD and Lucky projects are together, take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation and `hasura` will need to know its value. You can either change it to `lucky_hasura_32_character_secret` (the static default in this project) or you can update all instances of `lucky_hasura_32_character_secret` with the value you find here. Either way it'll only run in development so you should be safe.
 
 ### Docker Intro
 

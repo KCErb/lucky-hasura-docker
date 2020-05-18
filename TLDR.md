@@ -4,13 +4,12 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
 ## Basic Up and Going
 
-1. Make sure you have `docker`, `lucky`, `up`, `git`, and `curl`.
+1. Make sure you have `docker`, [`lucky`](https://github.com/luckyframework/lucky_cli), and [`up`](https://github.com/paulcsmith/up) commands.
 
    ```shell
-   docker -v
-   lucky -v
-   up -v
-   curl -V
+   docker -v # => 19.03.8
+   lucky -v  # => 0.21.0
+   up -v     # => 0.1.7
    ```
 
 2. Do the following
@@ -57,9 +56,9 @@ The guide is quite long! If you want to just get a proof of concept running go a
    cd foo_bar
    ```
 
-5. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace it with `lucky_hasura_shared_secret`.
+5. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace it with `lucky_hasura_32_character_secret`.
 
-6. Run the project to make sure it works
+6. Now you can start developing with
 
    ```shell
    script/up
