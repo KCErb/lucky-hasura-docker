@@ -385,6 +385,7 @@ Next, I recommend:
 
    ```shell
    useradd -m -d /home/lhd -s /bin/bash lhd
+   usermod -a -G docker lhd
    mkdir /home/lhd/.ssh
    cp ~/.ssh/authorized_keys /home/lhd/.ssh
    chown -R lhd:lhd /home/lhd/.ssh
@@ -392,7 +393,7 @@ Next, I recommend:
    chmod 600 /home/lhd/.ssh/authorized_keys
    ```
 
-   This setup copies the authorized keys from root to the user so that you can still log in with the same key you were using to log in as root.
+   This setup copies the authorized keys from root to the user so that you can still log in with the same key you were using to log in as root. It also adds `lhd` to the docker group.
 
 2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
 3. In your Gitlab repository, provision two Deploy Tokens under `Settings > Repository`.
@@ -427,7 +428,7 @@ Next, we can do our DNS and security certificates through Cloudflare (for free).
 
     ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/cloudflare-origin-certs.jpg)
 
-**Note**: If you'd rather use a different path you just need to put it in the env in the keys `CERT_FILE_PATH` `KEY_FILE_PATH`. See `script/function/bootstrap` where this is used.
+**Note**: If you'd rather use a different path you just need to put it `Docker/traefik/config/tls.yaml`.
 
 #### script/deploy
 
@@ -438,9 +439,7 @@ export APP_DOMAIN='foobar.business'
 export IP_ADDRESS='104.248.51.205'
 ```
 
-Also, let's just take care of a little common, annoying-but-harmless, issue. Please change the last line of your `.profile` from `mesg n || true` to `test -t 0 && mesg n`. This has to do with tty between Gitlab CI and a login shell, your production server will complain when a special machine like the Gitlab CI runner tries to connect (since it does not have an STDIN).
-
-You'll see in the `bootstrap` script that the secrets are randomly generated, and the postgres password uses hex characters to avoid URL encoding. Also take note that an `ADMIN_PASSWORD` is generated for you which you'll need to log into Traefik, Grafana and others.
+You'll see in the `bootstrap` script that the secrets are randomly generated, and the postgres password uses hex characters to avoid URL encoding. Also take note that an `ADMIN_PASSWORD` is generated for you which you'll need to log into Traefik, Grafana and others. The `bootstrap` script also initializes the Docker Swarm and prints the `join token` to the screen. Thus, you may want to `rotate` the join token after the first bootstrap: [join token docs](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
 
 `script/deploy` by default runs in 'additive deploy' mode but we can pass a `-s` flag to use 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 

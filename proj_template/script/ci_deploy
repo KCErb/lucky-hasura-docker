@@ -4,15 +4,18 @@ set -e
 GITLAB_KEY=none
 SERVER_IP=none
 DEPLOY_ARG=''
+BRANCH_NAME=''
 
 if [ "$1" = "production" ]; then
   GITLAB_KEY=$GITLAB_PRODUCTION_KEY
   SERVER_IP=$PRODUCTION_SERVER_IP
+  BRANCH_NAME='master'
 fi
 
 if [ "$1" = "staging" ]; then
   GITLAB_KEY=$GITLAB_STAGING_KEY
   SERVER_IP=$STAGING_SERVER_IP
+  BRANCH_NAME='staging'
 fi
 
 if [ "$GITLAB_KEY" = "none" ]; then
@@ -34,5 +37,7 @@ chmod 700 ~/.ssh
 ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
 
 SSH_USER=lhd
-echo "running: script/deploy $DEPLOY_ARG $1 via ssh as user: $SSH_USER on IP $SERVER_IP."
-ssh -t "$SSH_USER@"$SERVER_IP" "bash --login -s < script/deploy $DEPLOY_ARG $1"
+echo "running: script/bootstrap $BRANCH_NAME via ssh as user: $SSH_USER on IP $SERVER_IP."
+ssh "$SSH_USER"@"$SERVER_IP" "bash --login -s" < script/bootstrap $BRANCH_NAME
+echo "running: script/deploy $DEPLOY_ARG via ssh as user: $SSH_USER on IP $SERVER_IP."
+ssh "$SSH_USER"@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git checkout $BRANCH_NAME && git pull && script/deploy $DEPLOY_ARG'"

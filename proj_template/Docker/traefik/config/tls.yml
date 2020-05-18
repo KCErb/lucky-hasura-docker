@@ -1,4 +1,4 @@
 tls:
   certificates:
-    - certFile: '{{env "CERT_FILE_PATH"}}'
-      keyFile: '{{env "KEY_FILE_PATH"}}'
+    - certFile: /certs/cloudflare.cert
+      keyFile: /certs/cloudflare.key

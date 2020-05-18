@@ -14,7 +14,6 @@ set -o pipefail
 source "${BASH_SOURCE%/*}/functions/commons"
 source "${BASH_SOURCE%/*}/functions/update_code"
 source "${BASH_SOURCE%/*}/functions/migrate"
-source "${BASH_SOURCE%/*}/functions/bootstrap"
 
 # Support -s flag for making a 'subtractive' deployment
 TYPE='add'
@@ -23,16 +22,7 @@ while getopts 's' flag; do
     s) TYPE='subtract' ;;
   esac
 done
-shift $((OPTIND-1))
 
-# If this is first deploy we need to bootstrap the project
-git ls-remote GITLAB_REPO_NAME -q >/dev/null 2>&1 || bootstrap $1
-
-cd GITLAB_REPO_NAME
-if [ $1 = 'staging' ]; then
-  git checkout staging
-fi
-git pull
 export LUCKY_TAG=`git rev-parse --abbrev-ref HEAD` # use branch name
 
 # Source lhd env variables
@@ -50,7 +40,7 @@ else
   migrate
 fi
 
-printf "\n▸Pruning docker\n"
+printf "\n▸ Pruning docker\n"
 docker system prune -af | indent
 
 printf "\n✔ All done.\n"

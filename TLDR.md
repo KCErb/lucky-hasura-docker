@@ -68,7 +68,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
 1. Provision a production server somewhere.
    * Ensure that ports 80 and 443 are available to the public.
-   * Save the SSL `.cert` and `.key` files as `/etc/certs/cloudflare.cert` and `/etc/certs/cloudflare.key` OR export in `~/.profile` the path you used as `CERT_FILE_PATH` and `KEY_FILE_PATH`.
+   * Save the SSL `.cert` and `.key` files as `/etc/certs/cloudflare.cert` and `/etc/certs/cloudflare.key`.
    * Create a non-root user (`lhd` for example) and make sure you can ssh into the server as that user.
 
      ```shell
@@ -87,14 +87,12 @@ The guide is quite long! If you want to just get a proof of concept running go a
    export SEND_GRID_KEY='SG.ALd_3xkHTRioKaeQ.APYYxwUdr00BJypHuximcjNBmOxET1gV8Q'
    ```
 
-5. Add the following variables to your environment using your own values and place them in `~/.profile`
+5. Add the following variables to your environment using your own values. You can use `.lhd-env` or `.profile` since the CI runner uses a login shell.
 
    ```shell
    export APP_DOMAIN='foobar.business'
    export IP_ADDRESS='104.248.51.205'
    ```
-
-   (Change the last line of `.profile` from `mesg n || true` to `test -t 0 && mesg n` to get rid of warning on Gitlab CI since the CI Runner doesn't have STDIN)
 
 6. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the name `PRODUCTION_SERVER_IP`.
 
@@ -123,13 +121,15 @@ The guide is quite long! If you want to just get a proof of concept running go a
 2. Add everything, commit, and push. The `sub-deploy` keyword runs the `deploy` script functions in the required order for the first push.
 
    ```shell
+   git remote add origin git@gitlab.com:KCErb/foo_bar.git
    git add .
-   git commit -m 'first commit [sub-deploy]'
-   git remote add origin <url>
+   git commit -m "first commit [sub-deploy]"
    git push -u origin master
    ```
 
 3. Once the deploy stage has passed CI, you can log in to the server and see progress with `docker service ls`. You should see `1/1` for all replicas once everything is online. It might take a minute the first time.
+
+**Note** - You may want to `rotate` the join token after the first bootstrap since it is printed to the Gitlab CI history. [Read more about join tokens](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
 
 ## Extras
 
