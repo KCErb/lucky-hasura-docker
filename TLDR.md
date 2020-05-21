@@ -146,6 +146,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
 2. Start the swarm
 
    ```shell
+   source ~/.lhd-env
    cd ~/GITLAB_REPO_NAME/Docker/prometheus-swarm
    docker stack deploy -c docker-compose.yml prometheus_swarm
    ```
@@ -234,7 +235,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
    rm spec/setup/setup_database.cr
    ```
 
-6. Run `script/test` to prove tests work as expected.
+6. Run `script/test` to start a shell session in a special test environment.
 
 ### Healthcheck
 
