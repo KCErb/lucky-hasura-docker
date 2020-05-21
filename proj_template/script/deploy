@@ -10,10 +10,14 @@
 set -e
 set -o pipefail
 
+# Source lhd env variables
+source ~/.lhd-env
+
 # import functions
 source "${BASH_SOURCE%/*}/functions/commons"
 source "${BASH_SOURCE%/*}/functions/update_code"
 source "${BASH_SOURCE%/*}/functions/migrate"
+source "${BASH_SOURCE%/*}/functions/docker_tag_exists"
 
 # Support -s flag for making a 'subtractive' deployment
 TYPE='add'
@@ -22,11 +26,25 @@ while getopts 's' flag; do
     s) TYPE='subtract' ;;
   esac
 done
+shift $((OPTIND-1))
 
-export LUCKY_TAG=`git rev-parse --abbrev-ref HEAD` # use branch name
+LUCKY_TAG=$1
+IMAGE='registry.gitlab.com/kcerb/foo_bar/lucky'
 
-# Source lhd env variables
-source ~/.lhd-env
+# Determine latest build if no build arg was passed
+if ! docker_tag_exists "$IMAGE" "$LUCKY_TAG" ; then
+  printf "\n▸ Searching for most recent build using *experimental* Docker feature.\n"
+  COMMIT_COUNT=$(git rev-list --count HEAD)
+  for ((i=0;i<COMMIT_COUNT;i++)); do
+    LUCKY_TAG=$(git rev-parse --short=8 "HEAD~$i")
+    docker_tag_exists "$IMAGE" "$LUCKY_TAG" && break
+  done
+  if [ $i = $COMMIT_COUNT ]; then
+    printf "Failed to find build matching commit.\n"
+    exit 1
+  fi
+fi
+export LUCKY_TAG
 
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to update the db first.

@@ -39,23 +39,6 @@ Build:
     - script/build
     - docker push $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
-# The goal here is to tag builds by branch so that in the build step we can use previous work
-Tag:
-  stage: tag
-  except:
-    variables:
-      - $CI_COMMIT_MESSAGE =~ /no-tag/
-      - $CI_COMMIT_MESSAGE =~ /build-only/
-      - $CI_COMMIT_MESSAGE =~ /test-only/
-      - $CI_COMMIT_MESSAGE =~ /deploy-only/
-  variables:
-    # We do not need the source code here. Just playing with Docker.
-    GIT_STRATEGY: none
-  script:
-    - docker pull $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
-    - docker tag $REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
-    - docker push $REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
-
 Test:
   stage: test
   except:
