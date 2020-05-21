@@ -40,4 +40,7 @@ SSH_USER=lhd
 echo "running: script/bootstrap $BRANCH_NAME via ssh as user: $SSH_USER on IP $SERVER_IP."
 ssh "$SSH_USER"@"$SERVER_IP" "bash --login -s" < script/bootstrap $BRANCH_NAME
 echo "running: script/deploy $DEPLOY_ARG via ssh as user: $SSH_USER on IP $SERVER_IP."
+# TODO - pass deploy image tag
+# probably easier on Gitlab after this issue closes:
+# https://gitlab.com/gitlab-org/gitlab/-/issues/16267
 ssh "$SSH_USER"@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git checkout $BRANCH_NAME && git pull && script/deploy $DEPLOY_ARG'"
