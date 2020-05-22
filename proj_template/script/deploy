@@ -28,19 +28,32 @@ while getopts 's' flag; do
 done
 shift $((OPTIND-1))
 
-LUCKY_TAG=$1
+DEPLOY_VERSION=$1
+
+if [[ -z "$DEPLOY_VERSION" ]]; then
+  echo "Error: Must provide version argument" 1>&2
+  exit 1
+fi
+
+MAX_COMMITS=10
 IMAGE='registry.gitlab.com/kcerb/foo_bar/lucky'
 
-# Determine latest build if no build arg was passed
+# Update commit to match deploy
+git checkout $DEPLOY_VERSION
+
+# Search for Image tag to match this version
+# (tag is same unless build was skipped )
+LUCKY_TAG=DEPLOY_VERSION
+
+# Determine latest build if no build arg was passed / no build can be found matching that
 if ! docker_tag_exists "$IMAGE" "$LUCKY_TAG" ; then
   printf "\n▸ Searching for most recent build using *experimental* Docker feature.\n"
-  COMMIT_COUNT=$(git rev-list --count HEAD)
-  for ((i=0;i<COMMIT_COUNT;i++)); do
-    LUCKY_TAG=$(git rev-parse --short=8 "HEAD~$i")
+  for LUCKY_TAG in $(git --no-pager log --abbrev=8 --pretty=format:"%h" -n $MAX_COMMITS) ; do
     docker_tag_exists "$IMAGE" "$LUCKY_TAG" && break
   done
-  if [ $i = $COMMIT_COUNT ]; then
-    printf "Failed to find build matching commit.\n"
+  
+  if [ $? != 0 ]; then
+    printf "✗ Failed to find build matching one of last $MAX_COMMITS commits.\n"
     exit 1
   fi
 fi

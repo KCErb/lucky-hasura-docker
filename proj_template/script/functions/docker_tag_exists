@@ -2,5 +2,5 @@
 
 # searches for tag in IMAGE TAG
 function docker_tag_exists {
-  DOCKER_CLI_EXPERIMENTAL='enabled' docker manifest inspect "$1":"$2" >/dev/null 2>&1
+  DOCKER_CLI_EXPERIMENTAL='enabled' docker manifest inspect "$1":"$2" >/dev/null
 }

@@ -40,10 +40,13 @@ docker pull "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION
 MIGRATION_TIMESTAMP=$(docker run --rm "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$OLD_VERSION" /home/lucky/app/script/docker/last_migration_timestamp)
 export MIGRATION_TIMESTAMP
 
+# Now it's safe to move the repo to the old version.
+git checkout $OLD_VERSION
+
 # additive migrations add to the db, so the new code relies on new stuff in the db
 # and that means we have to remove that code before removing those db changes
-# subtractive take away from the db, so the old code will break, so we first deploy the new code
-# which ignores the stuff we're about to take away and then take it away.
+# subtractive take away from the db, so the old code will break, so we first rollback the db
+# which restores columns that current ignores, then rollback the code.
 if [ "$TYPE" = "add" ]; then
   update_code
   rollback_db
