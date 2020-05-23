@@ -43,4 +43,4 @@ echo "running: script/deploy $DEPLOY_ARG via ssh as user: $SSH_USER on IP $SERVE
 # TODO - pass deploy image tag rather than just current tag + search
 # probably easier on Gitlab after this issue closes:
 # https://gitlab.com/gitlab-org/gitlab/-/issues/16267
-ssh "$SSH_USER"@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git pull && script/deploy $DEPLOY_ARG $CI_COMMIT_SHORT_SHA'"
+ssh "$SSH_USER"@"$SERVER_IP" "bash --login -c 'cd GITLAB_REPO_NAME && git fetch && script/deploy $DEPLOY_ARG $CI_COMMIT_SHORT_SHA'"
