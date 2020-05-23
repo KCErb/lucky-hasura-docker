@@ -43,7 +43,7 @@ git checkout $DEPLOY_VERSION
 
 # Search for Image tag to match this version
 # (tag is same unless build was skipped )
-LUCKY_TAG=DEPLOY_VERSION
+LUCKY_TAG=$DEPLOY_VERSION
 
 # Determine latest build if no build arg was passed / no build can be found matching that
 if ! docker_tag_exists "$IMAGE" "$LUCKY_TAG" ; then
