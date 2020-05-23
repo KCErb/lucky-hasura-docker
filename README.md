@@ -16,7 +16,7 @@ When a developer encounters a new tool or library they tend to do so with one of
 
 For each of these audiences I've provided a different resource. In the same order as above they are:
 
-1. A _TL;DT_ (too lazy; didn't type) guide on [YouTube](https://www.youtube.com/watch?v=H2YpigiNxjs).
+1. A _TL;DT_ (too lazy; didn't type) guide on [YouTube](https://youtu.be/ByC84BRHSoc).
 2. A TL;DR guide [in this repo](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/TLDR.md).
 3. A full [GUIDE.md](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/GUIDE.md) also in this repo.
 
