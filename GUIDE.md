@@ -18,7 +18,7 @@ Some of the tools here will be on your local machine, others will be in the dock
 
 The first thing you'll need to do is get a Lucky project scaffolded using Lucky CLI. Here are links to the docs for how to do that on [macOS](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-macos) and [Linux](https://luckyframework.org/guides/getting-started/installing#install-lucky-cli-on-linux) (Windows support has not landed for Crystal yet).
 
-With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local crystal might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal shouldn't really matter.
+With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local Crystal or Lucky might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal shouldn't really matter.
 
 `lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can of course do either one, but for this demo the focus is on backend tools, so the example app is API-only. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
 
@@ -90,7 +90,7 @@ Once that's done, you can move all of the files in `proj_template` over to your 
 rm -rf foo_bar/script
 rm foo_bar/Procfile
 rm foo_bar/Procfile.dev
-echo '\nup.cache\n' >> foo_bar/.gitignore
+echo '\nup.cache' >> foo_bar/.gitignore
 # rsync contents of template dir into foo_bar
 rsync -avr lucky-hasura-docker/proj_template/ foo_bar
 ```
@@ -110,11 +110,11 @@ Before going on, check if you understand this sentence: this is a multi-containe
 ### Docker Files
 
 Now with all of that introduced, we can talk about the files provided in `LHD/Docker`. There are several `docker-compose` files which in development are called by `up` (see the `up.yml`) as
-`docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml` (we'll talk about the other `docker-compose` files later in the Production section of this writeup). Please take a look at those as they define the core services of the project: `postgres`, `lucky`, and `hasura`. You'll notice in the `.dev` file and some reliance on `script/*` files. Hopefully, most of what is here is self-explanatory insofar as these things go. If not, let me know and we can certainly improve this section!
+`docker-compose -f Docker/docker-compose.yml -f Docker/docker-compose.dev.yml` (we'll talk about the other `docker-compose` files later in the Production section of this writeup). Please take a look at those as they define the core services of the project: `postgres`, `lucky`, and `hasura`. You'll notice in the `.dev` file and some reliance on `script/*` files. Hopefully, most of what is here is self-explanatory insofar as these things go. If not, open an issue and we can certainly improve this section!
 
 As for the directories in here, we have `traefik` and `prometheus-swarm` which are used in production (we'll come back to them) and `lucky` which is where the `Dockerfile`s reside for creating the production and development images.
 
-The reason there are two images is that while `production` is stateless, `development` has code mounted from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development. The one thing our development image has beyond crystal and lucky is shards and executables (in `lib`, `.shards`, and `bin`). These are kept in the image for a few reasons:
+The reason there are two images, is that while `production` is stateless, `development` has code mounted from local machine to container. This mainly comes up in the final lines of `Dockerfile.prod` where we build the release version of the server binary compared to the `Dockerfile` where we simply use `lucky watch` to constantly rebuild a less-optimized version in development. The one thing our development image has beyond Crystal and Lucky is shards and executables (in `lib`, `.shards`, and `bin`). These are kept in the image for a few reasons:
 
 1. Developers need to be working with the same dependency trees. That is already taken care of by `shard.lock` but why re-install if you can simply stick your shard in an image to share?
 2. If the shards produce binaries, they will be architecture-dependent.
@@ -123,7 +123,7 @@ That means we have to rebuild the image whenever we want to update Crystal, Luck
 
 ## Scripts folder
 
-Now let's dig into all of the scripts that try to make this whole system reproducible and easy to use. In LHD, the `script` directory has two subdirectories: `docker` and `functions`. The `functions` are functions that are called by more than one script. The `docker` scripts are scripts we copy into docker images and run from within the container.
+Now let's dig into all of the scripts that try to make this whole system reproducible and easy to use. In LHD, the `script` directory has two subdirectories: `docker` and `functions`. The `functions` are functions that are included by `bash` scripts. The `docker` scripts are scripts we copy into docker images and run from within the container.
 
 These scripts are the heart of LHD so let's get into some details:
 
@@ -149,13 +149,13 @@ Lastly, be sure to take a look at your docker containers, you should see `foo_ba
 
 ### script/down
 
-This script does the reverse of `up`. It removes the containers so that you go back to a clean slate. It's expected that a normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. You can use `up` for things like that. If you are looking for a _deep_ deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
+This script does the reverse of `up`. It removes the containers so that you go back to a clean slate. It's expected that a normal development cycle will use `script/up` and if things need to get reset a quick `script/down && script/up` should do the job. If you just want to stop containers without deleting them, `script/down` is not what you are looking for. If you are looking for a _deep_ deep reset, you'll need to at least delete the lucky image (or adjust `up.yml` to do a rebuild).
 
 WARNING: I haven't tested this script on a machine where I have multiple Docker projects, so this might have unexpected side effects like stopping or removing containers/volumes unexpectedly. It shouldn't, but it's not properly tested.
 
 ### script/test
 
-This script can run in two modes. If you pass an argument, it runs in production mode for testing production images locally. I'll describe that more in the production section below. With no argument, it spins up test copies of Hasura and Lucky in different containers and on different ports than `script/up` and then drops you into a shell session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. Once you are done, you can just exit the shell session and the test script will clean up afterward (remove the containers and related volumes).
+This script can run in two modes. If you pass an argument, it runs in production mode for testing production images locally. I'll describe that more in the production section below. With no argument, it spins up test copies of Hasura and Lucky in different containers and on different ports than `script/up` and then drops you into a shell session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. Once you are done, you can exit the shell session and the test script will clean up afterward (remove the containers and related volumes).
 
 It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite.
 
@@ -366,7 +366,7 @@ What's more, is Gitlab can do the heavy lifting for us with respect to building 
 First we have a few things to do to get ready.
 
 1. Prepare the production machine / environment
-2. Add a health check endpoint to Lucky so that Docker swarm can determine if our Lucky containers are running well.
+2. Add a health check endpoint to Lucky so that Docker Swarm can determine if our Lucky containers are running well.
 3. Put some ssh credentials into Gitlab so that the CI can reach into production and run code.
 
 ### Staging and Production Servers
@@ -397,10 +397,12 @@ Next, I recommend:
 
 2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
 3. In your Gitlab repository, provision two Deploy Tokens under `Settings > Repository`.
-    1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select the `read_registry` scope. If you like to, you can use this one in the next step. I'm going to recommend creating a second token though (and a third to keep staging and production separate as in 'foobar-production' and 'foobar-staging'). (See more at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).
-    2. The second token will be used to log in to the Gitlab Docker registry from your server. Give it a meaningful name and (at least) read access to both the registry and the repository. We'll save these values in a special `.lhd-env` file in the home directory `/home/lhd/.lhd-env` which will be `source`d by any scripts that need them.
+    1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select at least the `read_registry` scope. You don't need to save the username or token anywhere, this is only used by Gitlab. (Read more about deploy token at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).
+    2. The second token will be used to log in to the Gitlab Docker registry from your server. Give it a meaningful name and (at least) read access to both the registry and the repository. We'll save these values in a special `.lhd-env` file in the next step.
 
     Another secret we need is `SEND_GRID_KEY`. This comes from [sendgrid.com](https://sendgrid.com/) and is simply a convenient Lucky default for handling emails: [luckyframework.org/guides/deploying/heroku#quickstart](https://luckyframework.org/guides/deploying/heroku#quickstart). You'll have to go sign up with them and generate an API key.
+
+    Once you have these three special values, save them in a new file on the server called `.lhd-env` and place it in the home directory of your non-root user (`lhd`):
 
      ```shell
      # in ~/.lhd-env
@@ -409,7 +411,7 @@ Next, I recommend:
      export SEND_GRID_KEY='SG.ALf_3xkHTRioKaeQ.APYYxwUdr00B1ypHuximcjNBmOxET1gV8Q'
      ```
 
-**Note on `.lhd-env`** - We are storing a lot of sensitive information in this special file. There are more heavy-duty solutions to secret storage / use in Docker please read up on those and choose the number of layers of security you'd like to have. For example you might want to `chmod 600` this file as a start. I chose not to use the `.env` file Lucky is looking for because it's not available before the repo is cloned, and it doesn't support exporting variables for use by others that need them like Traefik and Hasura.
+**Note on `.lhd-env`** - We are storing a lot of sensitive information in this special file. There are more heavy-duty solutions to secret storage / use in Docker please read up on those and choose the number of layers of security you'd like to have. For this guide I recommend that you `chmod 600` this file. I chose not to use the `.env` file Lucky is looking for because it's not available before the repo is cloned, and it doesn't support exporting variables for use by others that need them like Traefik and Hasura.
 
 Next, we can do our DNS and security certificates through Cloudflare (for free). The first thing you'll need is a domain, so go get one of those. For the next steps, I won't go into too much detail since I want to let Cloudflare maintain their own docs (see [support.cloudflare.com/hc/en-us/articles/End-to-end-HTTPS-conceptual-overview](https://support.cloudflare.com/hc/en-us/articles/360024787372-End-to-end-HTTPS-with-Cloudflare-Part-1-conceptual-overview)) but here are some basic steps. Please note that the process of creating a domain and provisioning certificates for it can be time-consuming. If you get to a step and don't see a button or get a weird error like "this zone is not part of your account" then you probably just need to wait a few minutes (or as much as two days). Sorry, such is the nature of real production work. My experience is that I can do the following in 15 minutes without hassle:
 
@@ -432,18 +434,20 @@ Next, we can do our DNS and security certificates through Cloudflare (for free).
 
 #### script/deploy
 
-The final CI stage is deployment. This involves three scripts in total. The first is `ci_deploy` which the CI server uses to ssh into the production/staging server. The next `deploy` is run on the production/staging server and calls the third `bootstrap` if it doesn't see the gitlab repository in the home directory. `bootstrap` is mostly responsible for generating credentials and storing them in `~/.lhd-env` file, but we still need two more. Please fill these with your apps IP address and domain name and place them in the `.lhd-env` file
+The final CI stage is deployment. This involves three scripts in total. The first is `ci_deploy` which the CI server uses to ssh into the production/staging server. The `bootstrap` and `deploy` scripts are run on the staging/production servers. `bootstrap` is mostly responsible for generating credentials and storing them in the `~/.lhd-env` file. It makes the first clone of your repo and starts the docker swarm (**Security note** that means it prints the `join token` to the CI runner log. You may want to `rotate` the join token after the first bootstrap: [join token docs](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).). `deploy` checks out a named commit and pulls down an image for that commit. The next thing it does is deploy the stack and in order to do that it needs knowledge of two things:
 
 ```shell
 export APP_DOMAIN='foobar.business'
 export IP_ADDRESS='104.248.51.205'
 ```
 
-You'll see in the `bootstrap` script that the secrets are randomly generated, and the postgres password uses hex characters to avoid URL encoding. Also take note that an `ADMIN_PASSWORD` is generated for you which you'll need to log into Traefik, Grafana and others. The `bootstrap` script also initializes the Docker Swarm and prints the `join token` to the screen. Thus, you may want to `rotate` the join token after the first bootstrap: [join token docs](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
+So place these values in `.lhd-env` or in `~/.profile` as you like. `ci_deploy` uses a login shell so it will pick up `.profile` vars, then `bootstrap` and `deploy` `source` the `.lhd-env` file.
+
+You'll see in the `bootstrap` script that the secrets are randomly generated, and the postgres password uses hex characters to avoid URL encoding. Also take note that an `ADMIN_PASSWORD` is generated for you which you'll need to log into Traefik, Grafana and others.
 
 `script/deploy` by default runs in 'additive deploy' mode but we can pass a `-s` flag to use 'subtractive deploy' mode. The idea here is that we can choose to have each deployment only add or subtract columns from the database. The difference between the two is simply the order we migrate the database and update the code. If we added columns / tables, then we need to migrate the database before updating the code since the old code won't ask for columns that didn't exist before. The reverse is true if we take away columns / tables.
 
-NOTE: The first deployment has to "update" code before migrating because that function gets the stack going (i.e. starts services). So on the very first deploy we'll be using `script/deploy -s <arg>`. You'll see that below when we talk about the first commit + push. The `arg` here is either `production` or `staging` to determine which IP address, ssh key, and branch to use in deployment.
+NOTE: The first deployment has to "update" code before migrating because that function gets the stack going (i.e. starts services). So on the very first deploy we'll be using `script/deploy -s <arg>` via a special commit message. (You'll see that below when we talk about the first commit + push.) The `arg` here is either `production` or `staging` to determine which IP address and ssh key to use in deployment.
 
 Please do have a look at `docker-compose.prod.yml` and `docker-compose.swarm.yml`. You'll see again some of those env variables that are needed to get this started being passed into containers. You'll also see some `deploy` keys being used which start us off with just 1 replica of each service. If you have trouble with the first deploy, the issue may be resolved by double-checking that you understand these two files.
 
@@ -457,7 +461,7 @@ Let's turn our attention to how it is we connect the wide world to our Lucky and
 
 There are two places to look for Traefik configuration, let's start with `docker-compose.swarm.yml`. This file defines some swarm-only keys like 'deploy' and the Traefik service. As we look through the YAML, the first thing we see is that it adds some `traefik` rules to the Hasura and Lucky services. You'll likely want to change these to suit your own tastes, so I recommend you read their docs, for example: [docs.traefik.io/routing/overview](https://docs.traefik.io/routing/overview/).
 
-The next thing I want you to notice is the service called `traefik-docker-link`. This piece is needed to avoid a security issue which arises from Traefik needing access to the docker socket and that giving it potential admin privileges. The Traefik docs point to a lot of good resources on this issue in their docker docs: [docs.traefik.io/providers/docker](https://docs.traefik.io/providers/docker/#docker-api-access) if you want to dive in. One resource they point to is Docker's own docs: [docs.docker.com/engine/security/security/#docker-daemon-attack-surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface).
+The next thing I want you to notice is the service called `traefik-docker-link`. This piece is needed to avoid a security issue which arises from Traefik needing access to the docker socket and that giving it potential admin privileges. The Traefik docs point to a lot of good resources on this issue: [docs.traefik.io/providers/docker](https://docs.traefik.io/providers/docker/#docker-api-access) if you want to dive in. One resource they point to is Docker's own docs: [docs.docker.com/engine/security/security/#docker-daemon-attack-surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface).
 
 The other place that Traefik config is stored is in `Docker/traefik`. Since Traefik 2.0 the static config is in `Docker/traefik/traefik.yml` while the dynamic config is in (1) service labels (in the docker-compose file) and (2) in `yml` files in `Docker/traefik/config`.
 
@@ -467,9 +471,9 @@ If you have any other questions about this aspect of things, try to read through
 
 In deployment, we'll be using docker swarm so you may also notice the `script/docker/*healthcheck` files. These are little scripts that run every so often and make sure the services are healthy. You can read more about them here: [docs.docker.com/compose/compose-file/#healthcheck](https://docs.docker.com/compose/compose-file/#healthcheck).
 
-LHD includes a health check for Lucky that makes sure it has a good DB connection. You might wonder why we don't just use `curl` for the health check and the answer is that we could. I chose to do a demo health check in Crystal because I want to open the door to a more meaningful health check. As your application logic gets more complex you may have a more complex definition of 'healthy' beyond a simple 200 coming back somewhere. At any rate, the one I've included here relies on us creating a `version` route so we'll do that now.
+LHD includes a health check for Lucky that makes sure it has a good DB connection. You might wonder why we don't just use `curl` for the health check and the answer is that we could. I chose to do a demo health check in Crystal because I want to open the door to a more meaningful health check. As your application logic gets more complex, you may have a more complex definition of 'healthy' beyond a simple 200 coming back somewhere. At any rate, the one I've included here relies on us creating a `version` route so we'll do that now.
 
-First uncomment the healthcheck lines in `docker-compose.prod.yml`, then we'll create our first model: `version`. First, open a shell in the lucky container with `docker exec -it foo_bar_lucky /bin/bash` (or `up ssh`). And then run `lucky gen.model Version`. You should get something like
+First uncomment the healthcheck lines in `docker-compose.prod.yml` under the `lucky` service, then we'll create our first model: `version`. First, open a shell in the lucky container with `docker exec -it foo_bar_lucky /bin/bash` (or `up ssh`). And then run `lucky gen.model Version`. You should get something like
 
 ```shell
 root@5b357ed2ad28:/data# lucky gen.model Version
@@ -543,7 +547,7 @@ Let's head on over to "Settings > CI/CD" under the "Variables" heading. There yo
    ```shell
    ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production” -f ~/.ssh/gitlab-ci
    ssh-copy-id -i ~/.ssh/gitlab-ci lhd@foobar.business
-   # save the private key as a Gitlab CI variable
+   # save the private key as the `GITLAB_PRODUCTION_KEY` Gitlab CI variable
    ```
 
 2. The second variable is simply the IP address of the manager node where deployments are headed: `PRODUCTION_SERVER_IP`.
@@ -659,7 +663,7 @@ For example. Once grafana is up, head on over to `grafana.foobar.business` and s
 
 I feel like I should write more since there's a bunch going on under the hood here, but I'll let those interested read the `docker-compose` file, it has all the details. In production I have another CNAME record for `grafana.foobar.business` and I can do my monitoring from there.
 
-Take note! Putting all of the above on one $5 box on Digital Ocean uses 80% of the RAM. I would recommend leaving off the monitoring tools while developing and then once the big release day comes upgrading a few bucks a month or putting your monitoring tools on a different box (that box just has to join the swarm, your local box could join the swarm for example).
+Take note! Putting all of the above on one $5 box on Digital Ocean uses ~80% of the RAM. I would recommend leaving off the monitoring tools while developing and then once the big release day comes upgrading a few bucks a month or putting your monitoring tools on a different box (that box just has to join the swarm, your local box could join the swarm for example).
 
 ![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/v0.1.0/img/grafana-dashboard.jpg)
 

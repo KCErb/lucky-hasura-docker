@@ -50,7 +50,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
    rm -rf foo_bar/script
    rm foo_bar/Procfile
    rm foo_bar/Procfile.dev
-   echo '\nup.cache\n' >> foo_bar/.gitignore
+   echo '\nup.cache' >> foo_bar/.gitignore
    # rsync contents of template dir into foo_bar
    rsync -avr lucky-hasura-docker/proj_template/ foo_bar
    cd foo_bar
@@ -129,13 +129,13 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
 3. Once the deploy stage has passed CI, you can log in to the server and see progress with `docker service ls`. You should see `1/1` for all replicas once everything is online. It might take a minute the first time.
 
-**Note** - You may want to `rotate` the join token after the first bootstrap since it is printed to the Gitlab CI history. [Read more about join tokens](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
+**Security Note** - You may want to `rotate` the join token after the first bootstrap since it is printed to the Gitlab CI history. [Read more about join tokens](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
 
 ## Extras
 
 ### Monitoring with Swarmprom
 
-1. (Optional) Add slack credentials for automatic slack alerts.
+1. (Optional) Add slack credentials for automatic slack alerts to `.lhd-env`.
 
    ```shell
    export SLACK_URL='https://hooks.slack.com/services/G11G430A7/AK9023U17/vaGCB6T6ZVF1HRng0WqTEaeX'
@@ -143,7 +143,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
    export SLACK_USER='Prometheus'
    ```
 
-2. Start the swarm
+2. Start the swarm (be sure that `APP_DOMAIN` is defined via `source ~/.profile` if you haven't logged out yet):
 
    ```shell
    source ~/.lhd-env
@@ -276,7 +276,13 @@ The guide is quite long! If you want to just get a proof of concept running go a
     end
     ```
 
-5. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+5. Migrate and seed in the `lucky` container.
+
+    ```shell
+    lucky db.migrate && lucky db.create_required_seeds
+    ```
+
+6. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
     ```crystal
     class Version::Get < ApiAction
@@ -292,7 +298,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
     end
     ```
 
-6. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+7. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
     ```crystal
     current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
@@ -302,14 +308,24 @@ The guide is quite long! If you want to just get a proof of concept running go a
     SaveVersion.create!(value: current_version) unless version_is_same
     ```
 
-7. Migrate and seed in the `lucky` container.
-
-    ```shell
-    lucky db.migrate && lucky db.create_required_seeds
-    ```
-
 8. Test from the host
 
    ```shell
    curl localhost:5000/version
    ```
+
+### Rollback/Deploy to version
+
+Rollback and Deploy scripts are provided. To rollback to a certain image you just need to provide the tag of the image (first 8 characters of commit sha where that image was built)
+
+```shell
+script/rollback 53c086ec
+```
+
+If you want to fast-forward to a later commit, you can give its short-sha (first 8 characters) to the deploy script
+
+```shell
+script/deploy 8d9b3d0c
+```
+
+In both cases the `-s` flag can be passed to signal `subtractive` mode as described in the guide.

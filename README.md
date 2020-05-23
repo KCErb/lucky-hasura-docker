@@ -8,17 +8,25 @@ The basic idea is that you'll have a Postgres database which you can talk to in 
 
 ## Getting Started
 
-I've included two guides. If you are newish to production / backend development, you should read the lengthy and detailed 'GUIDE.md'. If you are new to Hasura or Lucky or Docker you'll probably want to read the full `GUIDE` too. It might be a little boring in places for you if you are experienced, but it might also have some time-saving details.
+When a developer encounters a new tool or library they tend to do so with one of three attitudes:
 
-If you are an old hand, you might want to give the `TLDR.md` a shot. It's as brief as I could make it. Many of the steps there will be automated in a future version of this project with a nice CLI tool. Until then, I'm afraid you'll need to read, copy, paste, and type.
+1. What's all the fuss about X?
+2. What's the minimum I can learn/invest in order to get this running and move on?
+3. I want to become proficient in X, where are some good detailed guides that can show me the ropes?
 
-If you want to see what this project is about, but all this stuff about "reading" and "typing" seems like too much, you might want to try the _TL;DT_ (too lazy; didn't type) version on [YouTube](https://www.youtube.com/watch?v=H2YpigiNxjs).
+For each of these audiences I've provided a different resource. In the same order as above they are:
+
+1. A _TL;DT_ (too lazy; didn't type) guide on [YouTube](https://www.youtube.com/watch?v=H2YpigiNxjs).
+2. A TL;DR guide [in this repo](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/TLDR.md).
+3. A full [GUIDE.md](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/GUIDE.md) also in this repo.
+
+So feel free to watch the YouTube video to get a flavor and follow the `TLDR` to try it out. Once you've decided to actually adopt this as a foundation for your own app, you should read the full `GUIDE`. This is not a dependency, it is boilerplate. That means in order for you to customize your app you'll need to understand how your app works and that means reading this guide as well as guides on Docker, Hasura, Lucky, Traefik and so on according to your interest in customizing those pieces.
 
 ## Version Control
 
-I want to make it easy to read one of these markdown files and know whether or not the exact words you are reading were tested. I hate following a tutorial and seeing instructions that don't match reality. So if you read the `GUIDE` here from a tagged point in the commit history, you can be confident that every major and minor version has actually been tested from beginning to end (see the [semver](https://semver.org/) guide if you don't know what major and minor means here). For the first little while, things will be `v0.y.z` which means potentially breaking changes from `y` to `y`. I'll update `z` when I need to correct something small like a typo so those versions won't be tested.
+I want to make it easy to read one of these markdown files and know whether or not the exact words you are reading were tested. I hate following a tutorial and seeing instructions that don't match reality. So if you read the `TLDR` here from a tagged point in the commit history, you can be confident that every major and minor version has actually been tested from beginning to end (see the [semver](https://semver.org/) guide if you don't know what major and minor means here). I bring up a totally new Gitlab repo and DigitalOcean droplet and then follow the instructions verbatim before I tag a commit of this repo. I also try to keep the `GUIDE` and `TLDT` in sync with `TLDR`.
 
-I can't promise that I'll release a TL;DT with every minor version ... but we'll see.
+For the first little while, things will be `v0.y.z` which means potentially breaking changes from `y` to `y`. I'll update `z` when I need to correct something small like a typo, so those versions won't be fully tested.
 
 ## Roadmap
 
@@ -30,7 +38,6 @@ This is a work in progress. Please open up an issue to discuss how it can be imp
 - Other SSL options like Let's Encrypt.
 - Add / improve monitoring swarm .... might need to take swarmprom in house.
 - Support for other orchestration options like Kubernetes.
-- Support for other sync options, for example, just editing directly in the container (VSCode makes this easy).
 
 I'm very open-minded about this and would love to see this project go in a better direction from this rudimentary little beginning.
 
