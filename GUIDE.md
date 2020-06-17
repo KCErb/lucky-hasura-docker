@@ -95,8 +95,6 @@ echo '\nup.cache' >> foo_bar/.gitignore
 rsync -avr lucky-hasura-docker/proj_template/ foo_bar
 ```
 
-To include the CORSHandler, update `src/app_server.cr` to include `CORSHandler.new` in the middleware listing.
-
 For the last change you'll need to make, now that the LHD and Lucky projects are together, take a look in `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). The string that follows is your development-mode secret key base and will be used to sign the JWTs that are passed to Hasura. It gets randomly generated on project creation and `hasura` will need to know its value. You can either change it to `lucky_hasura_32_character_secret` (the static default in this project) or you can update all instances of `lucky_hasura_32_character_secret` with the value you find here. Either way it'll only run in development so you should be safe.
 
 ### Docker Intro
@@ -166,6 +164,10 @@ It won't hurt anything, but I recommend that you delete `spec/setup/setup_databa
 ### Other Scripts
 
 The other scripts are all for production, so you can read about them further down in the `production` section of this guide. Or if you're not planning on using the production tools here you can just delete them.
+
+### CORS
+
+When making a API call to the Lucky backend, you will have to setup CORS as a middleware. To set that up, follow the CORS section the TLDR or use the [Lucky reference](https://luckyframework.org/guides/json-and-apis/cors).
 
 ## Setup Hasura
 
