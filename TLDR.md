@@ -56,9 +56,11 @@ The guide is quite long! If you want to just get a proof of concept running go a
    cd foo_bar
    ```
 
-5. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace it with `lucky_hasura_32_character_secret`.
+5. In `src/app_server.cr`, add `CORSHandler.new` to the middleware listing.
 
-6. Now you can start developing with
+6. In `config/server.cr` you should see a line that starts with `settings.secret_key_base =` (line 17). Replace it with `lucky_hasura_32_character_secret`.
+
+7. Now you can start developing with
 
    ```shell
    script/up
