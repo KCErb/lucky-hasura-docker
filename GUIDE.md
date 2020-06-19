@@ -167,37 +167,44 @@ The other scripts are all for production, so you can read about them further dow
 
 ### CORS
 
-When making a API call to the Lucky backend, you will have to setup CORS as a middleware.
+When making an API call to the Lucky backend, you will probably need to setup a CORS middleware as described in the [Lucky docs](https://luckyframework.org/guides/json-and-apis/cors). One of the pitfalls with CORS is that people tend to:
 
-1. Create the file `src/handlers/cors_handler.cr`
+1. Not know about it.
+2. Be annoyed by it when it prevents them from doing something reasonable.
+3. Copy and paste some code from the internet to "solve the CORS problem".
+4. Move on with their lives.
 
-2. Copy and paste this code in. Adjust the `ALLOWED_ORIGINS` to your needs.
+Don't let that be you! I advise that you take a minute to learn about this security feature and use it correctly. [Here's just one](https://medium.com/@baphemot/understanding-cors-18ad6b478e2b)  of many articles on the internet about CORS. If you're new to Cross-Origin Resource Sharing please read up a little and then:
+
+1. Create a file called `src/handlers/cors_handler.cr`.
+
+2. Copy and paste the following code in. Adjust the `ALLOWED_ORIGINS` to your needs.
 
    ```crystal
    class CORSHandler
      include HTTP::Handler
-   
+
      # Origins that your API allows
      ALLOWED_ORIGINS = [
        # Allows for local development
        /\.lvh\.me/,
        /localhost/,
        /127\.0\.0\.1/,
-   
+
        # Add your production domains here
        # /production\.com/
      ]
-   
+
      def call(context)
        request_origin = context.request.headers["Origin"]? || "localhost"
-   
+
        # Setting the CORS specific headers.
        # Modify according to your apps needs.
        context.response.headers["Access-Control-Allow-Origin"] = allowed_origin?(request_origin) ? request_origin : ""
        context.response.headers["Access-Control-Allow-Credentials"] = "true"
        context.response.headers["Access-Control-Allow-Methods"] = "POST,GET,OPTIONS"
        context.response.headers["Access-Control-Allow-Headers"] = "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
-   
+
        # If this is an OPTIONS call, respond with just the needed headers.
        if context.request.method == "OPTIONS"
          context.response.status = HTTP::Status::NO_CONTENT
@@ -209,7 +216,7 @@ When making a API call to the Lucky backend, you will have to setup CORS as a mi
          call_next(context)
        end
      end
-   
+
      private def allowed_origin?(request_origin)
        ALLOWED_ORIGINS.find(false) do |pattern|
          pattern === request_origin
@@ -217,6 +224,8 @@ When making a API call to the Lucky backend, you will have to setup CORS as a mi
      end
    end
    ```
+
+3. Add `CORSHandler.new` to the middleware array in `src/app_server.cr`.
 
 ## Setup Hasura
 

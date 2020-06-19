@@ -239,37 +239,37 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
 ### CORS
 
-When making a API call to the Lucky backend, you will have to setup CORS as a middleware.
+When making an API call to the Lucky backend, you will probably need to setup a CORS middleware.
 
-1. Create the file `src/handlers/cors_handler.cr`
+1. Create a file called `src/handlers/cors_handler.cr`.
 
-2. Copy and paste this code in. Adjust the `ALLOWED_ORIGINS` to your needs.
+2. Copy and paste the following code in. Adjust the `ALLOWED_ORIGINS` to your needs.
 
    ```crystal
    class CORSHandler
      include HTTP::Handler
-   
+
      # Origins that your API allows
      ALLOWED_ORIGINS = [
        # Allows for local development
        /\.lvh\.me/,
        /localhost/,
        /127\.0\.0\.1/,
-   
+
        # Add your production domains here
        # /production\.com/
      ]
-   
+
      def call(context)
        request_origin = context.request.headers["Origin"]? || "localhost"
-   
+
        # Setting the CORS specific headers.
        # Modify according to your apps needs.
        context.response.headers["Access-Control-Allow-Origin"] = allowed_origin?(request_origin) ? request_origin : ""
        context.response.headers["Access-Control-Allow-Credentials"] = "true"
        context.response.headers["Access-Control-Allow-Methods"] = "POST,GET,OPTIONS"
        context.response.headers["Access-Control-Allow-Headers"] = "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
-   
+
        # If this is an OPTIONS call, respond with just the needed headers.
        if context.request.method == "OPTIONS"
          context.response.status = HTTP::Status::NO_CONTENT
@@ -281,7 +281,7 @@ When making a API call to the Lucky backend, you will have to setup CORS as a mi
          call_next(context)
        end
      end
-   
+
      private def allowed_origin?(request_origin)
        ALLOWED_ORIGINS.find(false) do |pattern|
          pattern === request_origin
