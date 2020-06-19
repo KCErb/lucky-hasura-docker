@@ -165,6 +165,70 @@ It won't hurt anything, but I recommend that you delete `spec/setup/setup_databa
 
 The other scripts are all for production, so you can read about them further down in the `production` section of this guide. Or if you're not planning on using the production tools here you can just delete them.
 
+### CORS
+
+When making an API call to the Lucky backend, you will probably need to setup a CORS middleware as described in the [Lucky docs](https://luckyframework.org/guides/json-and-apis/cors). One of the pitfalls with CORS is that people tend to:
+
+1. Not know about it.
+2. Be annoyed by it when it prevents them from doing something reasonable.
+3. Copy and paste some code from the internet to "solve the CORS problem".
+4. Move on with their lives.
+
+Don't let that be you! I advise that you take a minute to learn about this security feature and use it correctly. [Here's just one](https://medium.com/@baphemot/understanding-cors-18ad6b478e2b)  of many articles on the internet about CORS. If you're new to Cross-Origin Resource Sharing please read up a little and then:
+
+1. Create a file called `src/handlers/cors_handler.cr`.
+
+2. Copy and paste the following code in. Adjust the `ALLOWED_ORIGINS` to your needs.
+
+   ```crystal
+   class CORSHandler
+     include HTTP::Handler
+
+     # Origins that your API allows
+     ALLOWED_ORIGINS = [
+       # Allows for local development
+       /\.lvh\.me/,
+       /localhost/,
+       /127\.0\.0\.1/,
+
+       # Add your production domains here
+       # /production\.com/
+     ]
+
+     def call(context)
+       request_origin = context.request.headers["Origin"]? || "localhost"
+
+       # Setting the CORS specific headers.
+       # Modify according to your apps needs.
+       context.response.headers["Access-Control-Allow-Origin"] = allowed_origin?(request_origin) ? request_origin : ""
+       context.response.headers["Access-Control-Allow-Credentials"] = "true"
+       context.response.headers["Access-Control-Allow-Methods"] = "POST,GET,OPTIONS"
+       context.response.headers["Access-Control-Allow-Headers"] = "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+
+       # If this is an OPTIONS call, respond with just the needed headers.
+       if context.request.method == "OPTIONS"
+         context.response.status = HTTP::Status::NO_CONTENT
+         context.response.headers["Access-Control-Max-Age"] = "#{20.days.total_seconds.to_i}"
+         context.response.headers["Content-Type"] = "text/plain"
+         context.response.headers["Content-Length"] = "0"
+         context
+       else
+         call_next(context)
+       end
+     end
+
+     private def allowed_origin?(request_origin)
+       ALLOWED_ORIGINS.find(false) do |pattern|
+         pattern === request_origin
+       end
+     end
+   end
+   ```
+
+3. Add `CORSHandler.new` to the middleware array in `src/app_server.cr`.
+
+4. Add `require "./handlers/**"` to `src/app.cr`.
+
 ## Setup Hasura
 
 I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone else's. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management, authentication, nightly biller, etc.) from our front-end logic (GraphQL).
