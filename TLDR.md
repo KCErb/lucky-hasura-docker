@@ -292,6 +292,8 @@ When making an API call to the Lucky backend, you will probably need to setup a 
 
 3. Add `CORSHandler.new` to the middleware list in `src/app_server.cr`.
 
+4. Add `require "./handlers/**"` to `src/app.cr`.
+
 ### Healthcheck
 
 1. Uncomment the `healthcheck` lines in `docker-compose.swarm.yml` under the `lucky` service.

@@ -227,6 +227,8 @@ Don't let that be you! I advise that you take a minute to learn about this secur
 
 3. Add `CORSHandler.new` to the middleware array in `src/app_server.cr`.
 
+4. Add `require "./handlers/**"` to `src/app.cr`.
+
 ## Setup Hasura
 
 I think now is the right time to get our feet wet in Hasura land a little bit. We want to be able to hit a Lucky endpoint with an email and password and get an account, and then hit it again to get a JWT token that we can pass to Hasura to get our own email address back to us but not someone else's. This will involve editing some Lucky files and doing a little setting up on the Hasura side and is a nice introduction to the core reason this is being done: to separate our Business logic (DB management, authentication, nightly biller, etc.) from our front-end logic (GraphQL).
