@@ -157,7 +157,7 @@ WARNING: I haven't tested this script on a machine where I have multiple Docker 
 
 This script can run in two modes. If you pass an argument, it runs in production mode for testing production images locally. I'll describe that more in the production section below. With no argument, it spins up test copies of Hasura and Lucky in different containers and on different ports than `script/up` and then drops you into a shell session in the `foo_bar_lucky_test` container. From there you can run `crystal spec` or just generally play around. Once you are done, you can exit the shell session and the test script will clean up afterward (remove the containers and related volumes).
 
-It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DATABASE_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite.
+It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DB_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite.
 
 It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since `script/test` covers this need.
 

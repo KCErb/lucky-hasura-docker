@@ -33,7 +33,7 @@ services:
     ports:
     - 5000:5000
     environment:
-      DATABASE_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
+      DB_URL: postgres://postgres:@postgres:5432/PROJECT_NAME_development
       SHARDS_CACHE_PATH: /home/lucky/app/.shards
     tty: true
     container_name: PROJECT_NAME_lucky

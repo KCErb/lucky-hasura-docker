@@ -4,5 +4,5 @@
 # Then exec's into Hasura instance and updates metadata there.
 function migrate {
   printf "\n▸ Running update_db in $LUCKY_TAG\n"
-  docker run --rm --env-file ./Docker/lucky/migrations.env -e "DATABASE_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" --net SWARM_NAME_migrations "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG" /home/lucky/app/script/docker/update_db -s | indent
+  docker run --rm --env-file ./Docker/lucky/migrations.env -e "DB_URL=postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" --net SWARM_NAME_migrations "registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky:$LUCKY_TAG" /home/lucky/app/script/docker/update_db -s | indent
 }

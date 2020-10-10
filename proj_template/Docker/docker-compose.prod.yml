@@ -31,4 +31,4 @@ services:
       APP_DOMAIN:
       LUCKY_ENV: production
       PORT: 5000
-      DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
+      DB_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
