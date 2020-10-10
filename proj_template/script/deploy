@@ -36,7 +36,7 @@ if [[ -z "$DEPLOY_VERSION" ]]; then
 fi
 
 MAX_COMMITS=10
-IMAGE='registry.gitlab.com/kcerb/foo_bar/lucky'
+IMAGE='registry.gitlab.com/GITLAB_USER/GITLAB_REPO_NAME/lucky'
 
 # Update commit to match deploy
 git checkout $DEPLOY_VERSION
