@@ -17,8 +17,8 @@ When a developer encounters a new tool or library they tend to do so with one of
 For each of these audiences I've provided a different resource. In the same order as above they are:
 
 1. A _TL;DT_ (too lazy; didn't type) guide on [YouTube](https://youtu.be/ByC84BRHSoc).
-2. A TL;DR guide [in this repo](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/TLDR.md).
-3. A full [GUIDE.md](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/GUIDE.md) also in this repo.
+2. A TL;DR guide [in this repo](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/TLDR.md).
+3. A full [GUIDE.md](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/GUIDE.md) also in this repo.
 
 So feel free to watch the YouTube video to get a flavor and follow the `TLDR` to try it out. Once you've decided to actually adopt this as a foundation for your own app, you should read the full `GUIDE`. This is not a dependency, it is boilerplate. That means in order for you to customize your app you'll need to understand how your app works and that means reading this guide as well as guides on Docker, Hasura, Lucky, Traefik and so on according to your interest in customizing those pieces.
 

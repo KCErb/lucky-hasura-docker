@@ -7,8 +7,8 @@ The guide is quite long! If you want to just get a proof of concept running go a
 1. Make sure you have `docker`, [`lucky`](https://github.com/luckyframework/lucky_cli), and [`up`](https://github.com/paulcsmith/up) commands.
 
    ```shell
-   docker -v # => 19.03.8
-   lucky -v  # => 0.21.0
+   docker -v # => 19.03.12
+   lucky -v  # => 0.24.0
    up -v     # => 0.1.7
    ```
 
@@ -75,11 +75,11 @@ The guide is quite long! If you want to just get a proof of concept running go a
      ssh lhd@foobar.business
      ```
 
-2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both read scopes, and be sure to copy the username and password for step 4.
+2. Provision two deploy tokens from Gitlab `Settings > Repository`. Name one `gitlab-deploy-token`, it will be used in CI so you don't need to save its username or password. Name the other whatever you like, give it at least both `read_repository` and `read_registry` scopes, and be sure to copy the username and password for step 4.
 
 3. Create an account/API key on [SendGrid](https://app.sendgrid.com), copy the value for the next step.
 
-4. Create a `.lhd-env` file in your home dir and place the Gitlab credentials and SendGrid API key (`chmod 600` this file to add a layer of security):
+4. (Assuming you are on your production server as the `lhd` user) Create a `.lhd-env` file the home dir and place the Gitlab credentials and SendGrid API key (`chmod 600` this file to add a layer of security):
 
    ```shell
    export DEPLOY_USERNAME='gitlab+deploy-token-170337'
@@ -91,12 +91,12 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
    ```shell
    export APP_DOMAIN='foobar.business'
-   export IP_ADDRESS='104.248.51.205'
+   export IP_ADDRESS='198.211.113.94'
    ```
 
-6. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the name `PRODUCTION_SERVER_IP`.
+6. On Gitlab also save that IP address as a variable under `Settings > CI/CD` with the key `PRODUCTION_SERVER_IP`.
 
-7. Generate a keypair.
+7. Generate a keypair (the following assumes you are doing this on your own compute NOT the production server).
 
     ```shell
     ssh-keygen -t ed25519 -C “gitlab-ci@foo_bar_production” -f ~/.ssh/gitlab-ci
@@ -112,13 +112,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
 
 ## First Push
 
-1. No travis in this Gitlab project
-
-   ```shell
-   rm .travis.yml
-   ```
-
-2. Add everything, commit, and push. The `sub-deploy` keyword runs the `deploy` script functions in the required order for the first push.
+1. Add everything, commit, and push as below. The `sub-deploy` keyword runs the `deploy` script functions in the required order for the first push. This is all it takes to put your app online! For more details about what that includes see the full guide.
 
    ```shell
    git remote add origin git@gitlab.com:KCErb/foo_bar.git
@@ -127,9 +121,11 @@ The guide is quite long! If you want to just get a proof of concept running go a
    git push -u origin master
    ```
 
-3. Once the deploy stage has passed CI, you can log in to the server and see progress with `docker service ls`. You should see `1/1` for all replicas once everything is online. It might take a minute the first time.
+2. Once the deploy stage has passed CI, you can log in to the server and see progress with `docker service ls`. You should see `1/1` for all replicas once everything is online. You can confirm this by visiting `https://api.foobar.business/` where you'll see the Hello World message that ships with Lucky.
 
 **Security Note** - You may want to `rotate` the join token after the first bootstrap since it is printed to the Gitlab CI history. [Read more about join tokens](https://docs.docker.com/engine/reference/commandline/swarm_join-token/).
+
+**Troubleshooting** - If you get `Invalid memory access` at the `crystal build` step of the `build` stage you are bumping into a hard-to-reproduce issue that has cropped up variously across the crystal ecosystem. Just try triggering a new build and invalidating the Docker cache. Also please open an issue so that I can track the frequency of this issue.
 
 ## Extras
 
@@ -184,7 +180,7 @@ The guide is quite long! If you want to just get a proof of concept running go a
    }
    ```
 
-3. Add `user` role in Hasura dashboard [localhost:9695](http://localhost:9695/) with permission to select their own email.
+3. Add `user` role in Hasura dashboard [localhost:9695](http://localhost:9695/) with permission to select their own email (screenshot in full guide).
 
 4. Add `spec/requests/graphql/users/query_spec.cr` file with contents
 
@@ -257,7 +253,7 @@ When making an API call to the Lucky backend, you will probably need to setup a 
        /127\.0\.0\.1/,
 
        # Add your production domains here
-       # /production\.com/
+       /foobar\.business/
      ]
 
      def call(context)
@@ -304,11 +300,11 @@ When making an API call to the Lucky backend, you will probably need to setup a 
    lucky gen.model Version
    ```
 
-3. Add a table by replacing the contents of `src/models/version.cr` with:
+3. Add a `value` column to the `versions` table by updating `src/models/version.cr` with:
 
     ```crystal
     class Version < BaseModel
-     table :versions do
+     table do
        column value : String
      end
     end
@@ -317,29 +313,23 @@ When making an API call to the Lucky backend, you will probably need to setup a 
 4. Update the corresponding migration by adding 1 line in the create block `add value : String`. My file looks like this:
 
     ```crystal
-    class CreateVersions::V20200415124905 < Avram::Migrator::Migration::V1
-     def migrate
-       # Learn about migrations at: https://luckyframework.org/guides/database/migrations
-       create table_for(Version) do
-         primary_key id : Int64
-         add_timestamps
-         add value : String # <<< LIKE THIS
-       end
-     end
-
-     def rollback
-       drop table_for(Version)
-     end
+    class CreateVersions::V20201010215829 < Avram::Migrator::Migration::V1
+      def migrate
+        # Learn about migrations at: https://luckyframework.org/guides/database/migrations
+        create table_for(Version) do
+          primary_key id : Int64
+          add_timestamps
+          add value : String
+        end
+      end
+ 
+      def rollback
+        drop table_for(Version)
+      end
     end
     ```
 
-5. Migrate and seed in the `lucky` container.
-
-    ```shell
-    lucky db.migrate && lucky db.create_required_seeds
-    ```
-
-6. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
+5. Add a route to `GET` the current version. Put the following in `src/actions/version/get.cr`
 
     ```crystal
     class Version::Get < ApiAction
@@ -355,7 +345,7 @@ When making an API call to the Lucky backend, you will probably need to setup a 
     end
     ```
 
-7. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
+6. Add some logic to `tasks/create_required_seeds.cr` so that each time the required seeds are created we make sure the latest version number is provided:
 
     ```crystal
     current_version = `git rev-parse --short=8 HEAD 2>&1`.rchop
@@ -363,6 +353,12 @@ When making an API call to the Lucky backend, you will probably need to setup a 
     last_version = VersionQuery.last?
     version_is_same = last_version && last_version == current_version
     SaveVersion.create!(value: current_version) unless version_is_same
+    ```
+
+7. Migrate and seed in the `lucky` container.
+
+    ```shell
+    lucky db.migrate && lucky db.create_required_seeds
     ```
 
 8. Test from the host

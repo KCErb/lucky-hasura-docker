@@ -1,5 +1,11 @@
 # Changelog
 
+## Changes in v0.3.0
+
+* Lucky now uses `DB_URL` instead of `DATABASE_URL`.
+* Bumped `lucky-crystal` image and Hasura versions.
+* Add `shard.lock` to repo after images are built now.
+
 ## Changes in v0.2.0
 
 * Removed docker-sync dependency.

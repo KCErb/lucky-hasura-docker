@@ -6,7 +6,7 @@ If you're not familiar with any of these tools, please click on the links above 
 
 And how is it that we put it all together? Docker.
 
-Yes, that's Docker with a period, not an exclamation point. I'm not gonna lie, this project has taken a little skip out of my step with respect to Docker. The rainbows may have faded, but at the end is a pot of steel ingots, not as shiny as gold but still valuable and very useful.
+Yes, that's Docker with a period, not an exclamation point. I'm not gonna lie, this project has taken a little skip out of my step with respect to Docker. The rainbows may have faded, but at the end is a pot of steel ingots, not as shiny as gold but still valuable.
 
 There are two sections of this writeup, the first is on using Docker to get these tools up together in development, the second is on doing it all in production (with Docker Swarm). As usual, development is just the tip of the iceberg. Much of what's written here and available in the example project is dedicated to having really nice production-grade automated deployment. So if you don't plan to use Docker in production, that's fine, I think the first half will still be useful, but be aware that that wasn't my intent when creating this project initially. If there is interest and PRs I'd be happy to make this more development-only friendly.
 
@@ -20,7 +20,9 @@ The first thing you'll need to do is get a Lucky project scaffolded using Lucky 
 
 With that tool in place, you can now start a project with `lucky init` as per the next page of documentation [Starting a Lucky Project](https://luckyframework.org/guides/getting-started/starting-project). Please notice that though we are generating the scaffold locally, everything else will be done in the Docker container. This could lead to some confusion since, for example, your local Crystal or Lucky might be a different version than that in the Docker container. Be careful to make sure they match for this one step, and from here on your local crystal shouldn't really matter.
 
-`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can of course do either one, but for this demo the focus is on backend tools, so the example app is API-only. You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
+`lucky init` will have you name your app and then the dialog will ask you if you want to do a "Full" app or an "API only" app. You can of course do either one, but for this demo the focus is on backend tools, so the example app is API-only. (A `Full` app requires a bit more Docker tooling than provided here. I plan to create a separate project that shows that off in the near future.) 
+
+You'll then be asked if you want to generate authentication. The answer is yes, we'll definitely want authentication helpers since Hasura uses JWT. Here's a one-liner that does the same:
 
 ```shell
 lucky init.custom foo_bar --api
@@ -83,7 +85,7 @@ git grep -l 'PROJECT_NAME' | xargs sed -i '' -e 's/PROJECT_NAME/foo_bar/g'
 git grep -l 'SWARM_NAME' | xargs sed -i '' -e 's/SWARM_NAME/foo_bar/g'
 ```
 
-Once that's done, you can move all of the files in `proj_template` over to your Lucky app. The following excerpt assumes your project and LHD are siblings: `git/lucky-hasura-docker` and `git/foo_bar`. It also deletes all of the default scripts in `foo_bar/script` since, at the time of this writing, they are not useful in an LHD workflow. It also removes the `Procfile`s and copies everything from `proj_template` to `foo_bar`. Be sure to replace `foo_bar` with your actual Lucky project's name!
+Once that's done, you can move all of the files in `proj_template` over to your Lucky app. The following excerpt assumes your project and LHD are siblings: `git/lucky-hasura-docker` and `git/foo_bar`. It also deletes all of the default scripts in `foo_bar/script` since we don't use most of them (though a couple are nice and worth cribbing [from here](https://luckyframework.org/guides/getting-started/starting-project#script-helpers)). It also removes the `Procfile`s and copies everything from `proj_template` to `foo_bar`. Be sure to replace `foo_bar` with your actual Lucky project's name!
 
 ```shell
 # modify foo_bar a bit
@@ -143,7 +145,7 @@ The main ideas to notice here are
 
 Enough talking! Let's go ahead and give this a whirl. Run `script/up` now and if all went according to plan you'll see `✔ Setup is finished!` after about a minute. Then the script will enter the Lucky container and start a `tail -f` of the logs.
 
-Once Lucky gives you the signal, you can visit [localhost:5000](http://localhost:5000) and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version number at [localhost:8080/v1/version](http://localhost:8080/v1/version) as `{"version":"v1.2.0"}`. And the Hasura console is at [localhost:9695](http://localhost:9695/). This console is slightly different than the default UI console. This one was launched from the Hasura CLI and we're using the `cli-migrations` Hasura image. Among other things, this means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`.
+Once Lucky gives you the signal, you can visit [localhost:5000](http://localhost:5000) and see the default JSON that Lucky comes with `{"hello":"Hello World from Home::Index"}`. You should also be able to see the Hasura version number at [localhost:8080/v1/version](http://localhost:8080/v1/version) as `{"version":"v1.3.2"}`. And the Hasura console is at [localhost:9695](http://localhost:9695/). This console is slightly different than the default UI console. This one was launched from the Hasura CLI and we're using the `cli-migrations` Hasura image. Among other things, this means that any changes you make in the UI will be automatically written to `/hasura/migrations` which will be copied locally to `db/hasura/migrations`.
 
 Lastly, be sure to take a look at your docker containers, you should see `foo_bar_lucky:dev`, your lucky container, as well as the default `hasura` and `postgres` containers ready to rock and roll!
 
@@ -160,6 +162,8 @@ This script can run in two modes. If you pass an argument, it runs in production
 It is important that you use this script (or something similar to it) to run tests since we are sharing a hard-coded `DB_URL` between Lucky and Hasura. Your tests will run on whatever database that URL is set to and since tests truncate the database, you could end up truncating your development database at an inopportune time. This script also has the advantage of setting things up properly so that Hasura is available for API calls in the test suite.
 
 It won't hurt anything, but I recommend that you delete `spec/setup/setup_database.cr` since `script/test` covers this need.
+
+**Note** This starts a new `test` instance of Hasura. If you are logged into the `dev` instance and make a permissions change it'll be written to the `db/hasura` dir but it won't be picked up by the `test` Hasura instance automatically. You'll either want to exit your test session and run the script again, or go to [localhost:9696](http://localhost:9696/) to make your changes directly on that instance.
 
 ### Other Scripts
 
@@ -193,6 +197,7 @@ Don't let that be you! I advise that you take a minute to learn about this secur
 
        # Add your production domains here
        # /production\.com/
+       /foobar\.business/
      ]
 
      def call(context)
@@ -289,7 +294,7 @@ Notice that the top-level key is `user`, so if you wanted instead to POST json i
 
 And you can paste the token into your favorite JWT inspector ([jwt.io](https://jwt.io) is mine) and you should see that `admin` has the `admin` role and `user` has only the `user` role. So far so good. Now let's make a GraphQL query to Hasura. I'd recommend using a nice tool like [Insomnia](https://insomnia.rest/) for this, in that application you can [chain requests](https://support.insomnia.rest/article/43-chaining-requests) and hence use the response from the sign-in request as the `Bearer` token in the other and they even have a `graphql` mode that just lets you paste GraphQL in. Pretty spiffy.
 
-![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/img/insomnia-chain.jpg)
+![Screenshot of setting up chained insomnia request](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/img/insomnia-chain.jpg)
 
 Please read the Hasura docs and the docs of your favorite API-testing tool until you can post the following GraphQL to [localhost:8080/v1/graphql](http://localhost:8080/v1/graphql) using the token you got from your admin sign in.
 
@@ -336,7 +341,7 @@ Now, if you try that with the token you get from signing in as `buzz` you'll get
 
 That's because Hasura doesn't know about our `user` role and that it should at least be able to see its own email. Let's go to the dashboard and add that, again I'd rather leave the details to the Hasura docs, but here's a screenshot of the permissions I set to help you get off on the right foot:
 
-![hasura permissions screen](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/img/user-permissions.jpg)
+![hasura permissions screen](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/img/user-permissions.jpg)
 
 I just entered a new role called 'users' and edited the 'select' permission to allow a user to query their own email. Now the response is
 
@@ -459,7 +464,13 @@ Next, I recommend:
 
    This setup copies the authorized keys from root to the user so that you can still log in with the same key you were using to log in as root. It also adds `lhd` to the docker group.
 
-2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
+2. In the DO droplet, we use `ufw` (Uncomplicated Firewall) and since we'll be serving from this box we'll need to `ufw allow` a couple of ports: 80 and 443. You can use `ufw status` to see a list of ports that are allowed. 
+
+
+    > Note: at the moment, it appears there is a bug in the image and `ufw` is disabled by default. If this is the case you'll see `Status inactive` instead of the rules. You can still see active rules with `ufw show added` and enable with `ufw enable`.
+
+    2375 and 2376 are used by docker for communication between instances, this is so that you can have droplets participate in the same Docker network.
+
 3. In your Gitlab repository, provision two Deploy Tokens under `Settings > Repository`.
     1. The first one will be used during CI/CD. It must be named `gitlab-deploy-token` and you should select at least the `read_registry` scope. You don't need to save the username or token anywhere, this is only used by Gitlab. (Read more about deploy token at [docs.gitlab.com/ee/user/project/deploy_tokens/#usage](https://docs.gitlab.com/ee/user/project/deploy_tokens/#usage)).
     2. The second token will be used to log in to the Gitlab Docker registry from your server. Give it a meaningful name and (at least) read access to both the registry and the repository. We'll save these values in a special `.lhd-env` file in the next step.
@@ -481,18 +492,18 @@ Next, we can do our DNS and security certificates through Cloudflare (for free).
 
 1. Setup some special CNAME's on the DNS page for various Docker services which we'll be setting up: `api`, `traefik`, and `grafana` is a good enough start.
 
-    ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/img/cloudflare-dns.jpg)
+    ![docker dns](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/img/cloudflare-dns.jpg)
 
 2. Use the "Full (Strict)" encryption mode, don't use automatic `http => https`, and don't use HSTS enforcement, otherwise you'll get into a redirect loop (we'll be using an origin certificate and Traefik will handle that enforcement/redirect).
 
-3. Create a `.cert` and `.key` origin certificate pair and place them in `etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double-check them:
+3. Create a `.cert` and `.key` origin certificate pair and place them in `/etc/certs` on the server (production for now, but you'll do this again for staging). The name / path here are used by the scripts so please double-check them:
 
     ```shell
-    etc/certs/cloudflare.cert
-    etc/certs/cloudflare.key
+    /etc/certs/cloudflare.cert
+    /etc/certs/cloudflare.key
     ```
 
-    ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/img/cloudflare-origin-certs.jpg)
+    ![docker certs](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/img/cloudflare-origin-certs.jpg)
 
 **Note**: If you'd rather use a different path you just need to put it `Docker/traefik/config/tls.yaml`.
 
@@ -547,11 +558,11 @@ Generated VersionOperation in ./src/operations/save_version.cr
 Generated VersionQuery in ./src/queries/version_query.cr
 ```
 
-and you should see the corresponding files on your local system. Let's add a table by replacing the contents of `src/models/version.cr` with:
+and you should see the corresponding files on your local system. Let's add the `value` column to the `versions` table by updating the contents of `src/models/version.cr` with:
 
 ```crystal
 class Version < BaseModel
-  table :versions do
+  table do
     column value : String
   end
 end
@@ -602,6 +613,18 @@ version_is_same = last_version && last_version == current_version
 SaveVersion.create!(value: current_version) unless version_is_same
 ```
 
+Now you can migrate and seed in the `lucky` container.
+
+```shell
+lucky db.migrate && lucky db.create_required_seeds
+```
+
+and test by calling this from the host:
+
+```shell
+curl localhost:5000/version
+```
+
 ### Gitlab Variables
 
 Let's head on over to "Settings > CI/CD" under the "Variables" heading. There you'll need to create two variables.
@@ -638,6 +661,8 @@ git push -u origin master
 You should expect to see your image get built and stored in your project's GitLab docker registry under two tags, one with the commit ref and another with the branch name. This will make it easy in the future to jump to any older image you had before as well as whatever the 'latest' image was to be built on a given branch.
 
 If all went well, after a minute or two you can go to `api.foobar.business/version` and see the version JSON served. Or post GraphQL queries to `https://api.foobar.business/v1/graphql` (first you'll need a token by signing in `https://api.foobar.business/api/sign_ins`). If so then congratulations we're up and running!!
+
+**Troubleshooting** - If you get `Invalid memory access` at the `crystal build` step of the `build` stage you are bumping into a hard-to-reproduce issue that has cropped up variously across the crystal ecosystem. Just try triggering a new build and invalidating the Docker cache. Also please open an issue so that I can track the frequency of this issue.
 
 If not, you can check the status of your swarm from the production server. There are a lot of swarm commands and they are different than non-swarm commands so you might want to reference a [cheatsheet](https://www.google.com/search?q=docker+swarm+cheat+sheet). If you are getting any errors at all that could mean that these instructions don't match the versions you are using, or that you missed one of the steps described above. Be sure you are working from a tagged commit of this repo and feel free to open an issue to chat. Even (especially?) if it's a problem you were able to solve. I want a project created from this toolset to get up and running automatically on the first deploy!
 
@@ -710,7 +735,7 @@ export SLACK_CHANNEL='lhd-demo'
 export SLACK_USER='Prometheus'
 ```
 
-Then you can just firs up the swarm:
+Then you can just fire up the swarm:
 
 ```shell
 cd ~/foo_bar/Docker/prometheus-swarm
@@ -729,7 +754,7 @@ I feel like I should write more since there's a bunch going on under the hood he
 
 Take note! Putting all of the above on one $5 box on Digital Ocean uses ~80% of the RAM. I would recommend leaving off the monitoring tools while developing and then once the big release day comes upgrading a few bucks a month or putting your monitoring tools on a different box (that box just has to join the swarm, your local box could join the swarm for example).
 
-![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/v0.2.0/img/grafana-dashboard.jpg)
+![Screenshot of Grafana Dashboard with foo_bar and prometheus swarms](https://github.com/KCErb/lucky-hasura-docker/blob/v0.3.0/img/grafana-dashboard.jpg)
 
 ## Conclusion
 
