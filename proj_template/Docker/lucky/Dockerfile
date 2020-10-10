@@ -5,7 +5,7 @@ RUN addgroup -g 1000 -S lucky && \
     adduser -u 1000 -S lucky -G lucky
 USER lucky
 
-COPY --chown=lucky:lucky shard.yml /home/lucky/app/
+COPY --chown=lucky:lucky shard.* /home/lucky/app/
 # RUN chown -R lucky:lucky /home/lucky/app
 WORKDIR /home/lucky/app
 

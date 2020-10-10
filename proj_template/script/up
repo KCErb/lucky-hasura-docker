@@ -10,6 +10,11 @@ check_for_up
 printf "\n▸ Initializing database (builds lucky if needed)\n"
 up /home/lucky/app/script/docker/update_db -s
 
+printf "\n▸ Copying shard.lock from image to repo\n"
+id=$(docker create PROJECT_NAME_lucky:dev)
+docker cp $id:/home/lucky/app/shard.lock .
+docker rm -v $id
+
 printf "\n▸ Bringing containers up\n"
 up -d | indent
 
