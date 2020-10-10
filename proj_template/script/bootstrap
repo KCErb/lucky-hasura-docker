@@ -2,11 +2,14 @@
 
 # Provide required directories and environment files for project
 # Only runs if the git repo is not found at `~/GITLAB_REPO_NAME`
-set -e
 
 # Check if git repo exists
 git ls-remote GITLAB_REPO_NAME -q >/dev/null 2>&1 && exit 0
 
+# I don't know why, but putting this line
+# before this causes the `ssh` call from gitlab-ci to
+# have a non-zero exit code.
+set -e
 printf "\n▸ Bootstrapping project\n"
 source ~/.lhd-env
 git clone https://$DEPLOY_USERNAME:$DEPLOY_TOKEN@gitlab.com/GITLAB_USER/GITLAB_REPO_NAME.git
